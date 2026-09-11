@@ -18,7 +18,6 @@
   --pixel: "Press Start 2P", system-ui, monospace;
   --mono: "JetBrains Mono", "Courier Prime", "Courier New", monospace;
 }
-
 * {
   box-sizing: border-box;
 }
