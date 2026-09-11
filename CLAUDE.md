@@ -16,6 +16,10 @@ Arcade Vault — plataforma para jugar online y competir por la mayor cantidad d
 - `npm run lint` — ESLint via the flat config in `eslint.config.mjs`; the `next lint` command no longer exists in v16
 - No test runner is configured yet.
 
+## Skills
+
+usa siempre /frontend-design para diseñar la interfaz de usuario
+
 ## Next.js 16 — do not rely on pre-v16 training data
 
 This repo pins `next@16.3.4` / `react@19.2.8`. Per AGENTS.md, check `node_modules/next/dist/docs/` before writing App Router code — breaking changes already visible in this codebase include:
