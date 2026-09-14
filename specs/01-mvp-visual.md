@@ -1,6 +1,6 @@
 # SPEC 01 — MVP visual de Arcade Vault (pantallas sin juego)
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** (ninguno)
 > **Fecha:** 2026-09-11
 > **Objetivo:** Implementar como rutas reales de Next.js todas las pantallas visuales de Arcade Vault (biblioteca, detalle, reproductor, acceso y salón de la fama) descritas en `references/templates/`, sin implementar ningún juego real.
@@ -110,10 +110,10 @@ Persistencia en `localStorage` (solo cliente, sin versionado — alcance MVP):
 
 ## Risks
 
-| Riesgo | Mitigación |
-| --- | --- |
-| `localStorage` deshabilitado (modo privado del navegador) | La sesión simplemente no persiste entre recargas; la app sigue funcionando como invitado sin romperse. |
-| Un id de juego se referencia mal en algún link interno | Los ids se centralizan en `data/games.ts` como fuente única de verdad para generar todos los enlaces (`/juegos/[id]`, `/juegos/[id]/jugar`). |
+| Riesgo                                                    | Mitigación                                                                                                                                   |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `localStorage` deshabilitado (modo privado del navegador) | La sesión simplemente no persiste entre recargas; la app sigue funcionando como invitado sin romperse.                                       |
+| Un id de juego se referencia mal en algún link interno    | Los ids se centralizan en `data/games.ts` como fuente única de verdad para generar todos los enlaces (`/juegos/[id]`, `/juegos/[id]/jugar`). |
 
 ## Lo que **no** está en este spec
 
