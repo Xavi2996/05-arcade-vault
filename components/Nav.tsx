@@ -21,6 +21,7 @@ export default function Nav() {
     pathname === "/biblioteca" || pathname.startsWith("/juegos");
   const hallActive = pathname === "/salon-de-la-fama";
   const authActive = pathname === "/auth";
+  const aboutActive = pathname === "/acerca-de";
 
   return (
     <>
@@ -40,6 +41,9 @@ export default function Nav() {
           </Link>
           <Link href="/salon-de-la-fama" className={hallActive ? "active" : ""}>
             Salón de la Fama
+          </Link>
+          <Link href="/acerca-de" className={aboutActive ? "active" : ""}>
+            Acerca de
           </Link>
         </div>
         <div className="spacer"></div>
@@ -89,6 +93,9 @@ export default function Nav() {
           onClick={close}
         >
           Salón de la Fama
+        </Link>
+        <Link href="/acerca-de" className={aboutActive ? "active" : ""} onClick={close}>
+          Acerca de
         </Link>
         <Link href="/auth" className={authActive ? "active" : ""} onClick={close}>
           {user ? "Cuenta" : "Iniciar Sesión"}
