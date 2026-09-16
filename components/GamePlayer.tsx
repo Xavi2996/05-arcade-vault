@@ -1,39 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Game } from "@/data/games";
 import { getUser, subscribeUser } from "@/lib/session";
+import AsteroidsGame, {
+  type AsteroidsGameHandle,
+} from "@/components/games/AsteroidsGame";
 
 export default function GamePlayer({ game }: { game: Game }) {
+  const isAsteroids = game.id === "asteroids";
   const sessionUser = useSyncExternalStore(subscribeUser, getUser, () => null);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
+  const [asteroidsLevel, setAsteroidsLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const asteroidsRef = useRef<AsteroidsGameHandle>(null);
 
-  const level = Math.floor(score / 2500) + 1;
+  const level = isAsteroids ? asteroidsLevel : Math.floor(score / 2500) + 1;
   const name = nameOverride ?? sessionUser?.name ?? "INVITADO";
 
   useEffect(() => {
-    if (over || paused) return;
+    if (isAsteroids || over || paused) return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
-      220
+      220,
     );
     return () => clearInterval(t);
-  }, [over, paused]);
+  }, [isAsteroids, over, paused]);
 
   const endGame = () => setOver(true);
   const restart = () => {
     setScore(0);
     setLives(3);
+    setAsteroidsLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
     setNameOverride(null);
+    asteroidsRef.current?.restart();
   };
 
   const saveScore = () => {
@@ -85,13 +93,24 @@ export default function GamePlayer({ game }: { game: Game }) {
 
       <div className="crt">
         <div className="crt-screen">
-          <div className="game-arena">
-            <div className="grid-floor"></div>
-            <div className="enemy e1"></div>
-            <div className="enemy e2"></div>
-            <div className="enemy e3"></div>
-            <div className="player-ship"></div>
-          </div>
+          {isAsteroids ? (
+            <AsteroidsGame
+              ref={asteroidsRef}
+              paused={paused || over}
+              onScoreChange={setScore}
+              onLivesChange={setLives}
+              onLevelChange={setAsteroidsLevel}
+              onGameOver={endGame}
+            />
+          ) : (
+            <div className="game-arena">
+              <div className="grid-floor"></div>
+              <div className="enemy e1"></div>
+              <div className="enemy e2"></div>
+              <div className="enemy e3"></div>
+              <div className="player-ship"></div>
+            </div>
+          )}
           {paused && (
             <div
               className="crt-content"
