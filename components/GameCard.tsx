@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, type MouseEvent } from "react";
-import type { Game } from "@/data/games";
+import type { Game } from "@/lib/games";
 
 export default function GameCard({ game }: { game: Game }) {
   const tiltRef = useRef<HTMLAnchorElement>(null);
@@ -45,7 +45,11 @@ export default function GameCard({ game }: { game: Game }) {
           <span
             className={
               "btn " +
-              (game.color === "magenta" ? "magenta" : game.color === "yellow" ? "yellow" : "")
+              (game.color === "magenta"
+                ? "magenta"
+                : game.color === "yellow"
+                  ? "yellow"
+                  : "")
             }
           >
             JUGAR

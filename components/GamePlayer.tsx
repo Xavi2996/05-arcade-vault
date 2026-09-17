@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { Game } from "@/data/games";
+import type { Game } from "@/lib/games";
 import { getUser, subscribeUser } from "@/lib/session";
+import { saveScore as saveScoreToDb } from "@/lib/scores";
 import AsteroidsGame, {
   type AsteroidsGameHandle,
 } from "@/components/games/AsteroidsGame";
@@ -44,15 +45,13 @@ export default function GamePlayer({ game }: { game: Game }) {
     asteroidsRef.current?.restart();
   };
 
-  const saveScore = () => {
+  const saveScore = async () => {
     try {
-      const all = JSON.parse(localStorage.getItem("av_scores") || "[]");
-      all.push({ game: game.id, score, name, at: Date.now() });
-      localStorage.setItem("av_scores", JSON.stringify(all));
-    } catch {
-      // localStorage no disponible (modo privado, etc.) — el guardado es solo demostrativo.
+      await saveScoreToDb(game.id, name, score);
+      setSaved(true);
+    } catch (err) {
+      console.error("No se pudo guardar la puntuación", err);
     }
-    setSaved(true);
   };
 
   return (
