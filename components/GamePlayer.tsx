@@ -1,48 +1,76 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
+} from "react";
 import type { Game } from "@/lib/games";
 import { getUser, subscribeUser } from "@/lib/session";
 import { saveScore as saveScoreToDb } from "@/lib/scores";
-import AsteroidsGame, {
-  type AsteroidsGameHandle,
-} from "@/components/games/AsteroidsGame";
+import AsteroidsGame from "@/components/games/AsteroidsGame";
+import TetrisGame from "@/components/games/TetrisGame";
+
+interface RealGameHandle {
+  restart: () => void;
+}
+
+interface RealGameProps {
+  paused: boolean;
+  onScoreChange: (score: number) => void;
+  onLivesChange: (lives: number) => void;
+  onLevelChange: (level: number) => void;
+  onGameOver: (finalScore: number) => void;
+}
+
+type RealGameComponent = ForwardRefExoticComponent<
+  RealGameProps & RefAttributes<RealGameHandle>
+>;
+
+const REAL_GAMES: Record<string, RealGameComponent> = {
+  asteroids: AsteroidsGame,
+  tetris: TetrisGame,
+};
 
 export default function GamePlayer({ game }: { game: Game }) {
-  const isAsteroids = game.id === "asteroids";
+  const RealGame = REAL_GAMES[game.id];
+  const isRealGame = !!RealGame;
   const sessionUser = useSyncExternalStore(subscribeUser, getUser, () => null);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
-  const [asteroidsLevel, setAsteroidsLevel] = useState(1);
+  const [realLevel, setRealLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const asteroidsRef = useRef<AsteroidsGameHandle>(null);
+  const realGameRef = useRef<RealGameHandle>(null);
 
-  const level = isAsteroids ? asteroidsLevel : Math.floor(score / 2500) + 1;
+  const level = isRealGame ? realLevel : Math.floor(score / 2500) + 1;
   const name = nameOverride ?? sessionUser?.name ?? "INVITADO";
 
   useEffect(() => {
-    if (isAsteroids || over || paused) return;
+    if (isRealGame || over || paused) return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
       220,
     );
     return () => clearInterval(t);
-  }, [isAsteroids, over, paused]);
+  }, [isRealGame, over, paused]);
 
   const endGame = () => setOver(true);
   const restart = () => {
     setScore(0);
     setLives(3);
-    setAsteroidsLevel(1);
+    setRealLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
     setNameOverride(null);
-    asteroidsRef.current?.restart();
+    realGameRef.current?.restart();
   };
 
   const saveScore = async () => {
@@ -92,13 +120,13 @@ export default function GamePlayer({ game }: { game: Game }) {
 
       <div className="crt">
         <div className="crt-screen">
-          {isAsteroids ? (
-            <AsteroidsGame
-              ref={asteroidsRef}
+          {RealGame ? (
+            <RealGame
+              ref={realGameRef}
               paused={paused || over}
               onScoreChange={setScore}
               onLivesChange={setLives}
-              onLevelChange={setAsteroidsLevel}
+              onLevelChange={setRealLevel}
               onGameOver={endGame}
             />
           ) : (
