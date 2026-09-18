@@ -14,6 +14,7 @@ import { getUser, subscribeUser } from "@/lib/session";
 import { saveScore as saveScoreToDb } from "@/lib/scores";
 import AsteroidsGame from "@/components/games/AsteroidsGame";
 import TetrisGame from "@/components/games/TetrisGame";
+import ArkanoidGame from "@/components/games/ArkanoidGame";
 
 interface RealGameHandle {
   restart: () => void;
@@ -34,6 +35,7 @@ type RealGameComponent = ForwardRefExoticComponent<
 const REAL_GAMES: Record<string, RealGameComponent> = {
   asteroids: AsteroidsGame,
   tetris: TetrisGame,
+  arkanoid: ArkanoidGame,
 };
 
 export default function GamePlayer({ game }: { game: Game }) {
