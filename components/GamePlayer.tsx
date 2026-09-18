@@ -15,6 +15,7 @@ import { saveScore as saveScoreToDb } from "@/lib/scores";
 import AsteroidsGame from "@/components/games/AsteroidsGame";
 import TetrisGame from "@/components/games/TetrisGame";
 import ArkanoidGame from "@/components/games/ArkanoidGame";
+import SnakeGame from "@/components/games/SnakeGame";
 
 interface RealGameHandle {
   restart: () => void;
@@ -36,6 +37,7 @@ const REAL_GAMES: Record<string, RealGameComponent> = {
   asteroids: AsteroidsGame,
   tetris: TetrisGame,
   arkanoid: ArkanoidGame,
+  snake: SnakeGame,
 };
 
 export default function GamePlayer({ game }: { game: Game }) {
