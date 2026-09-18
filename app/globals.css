@@ -688,6 +688,15 @@ a {
     rgba(0, 0, 0, 0.4) 32px 33px
   );
 }
+.cover-bricks::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 80%, #fff 0 5px, transparent 6px) no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) 50% 88% / 32% 5px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(0, 245, 255, 0.6));
+}
 
 .cover-tetro {
   background: radial-gradient(circle at 50% 100%, #2a004a, #0a0a18);

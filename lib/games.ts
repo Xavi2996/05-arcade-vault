@@ -10,12 +10,16 @@ export interface Game {
   color: "cyan" | "magenta" | "yellow" | "green";
   best: number;
   plays: string;
+  playable: boolean;
 }
 
 export const CATS = ["TODOS", "ARCADE", "PUZZLE", "SHOOTER", "VERSUS"];
 
 export async function getGames(): Promise<Game[]> {
-  const { data, error } = await supabase.from("games").select("*");
+  const { data, error } = await supabase
+    .from("games")
+    .select("*")
+    .eq("playable", true);
   if (error) throw error;
   return data as Game[];
 }
