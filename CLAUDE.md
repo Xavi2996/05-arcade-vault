@@ -29,6 +29,8 @@ Arcade Vault — plataforma para jugar online y competir por la mayor cantidad d
 
 `references/implemented-games.md` is the source of truth for which games are actually implemented and playable (`playable = true` in Supabase's `games` table) — as of this writing: Arkanoid, Asteroids, Snake, Tetris. It lists each game's id, category/color, description, controls, component path, and spec. **Always check this file first** before answering questions about existing games, before touching any game component, and before starting work on a new game (it explains the shared `forwardRef` contract every game component follows). Keep it in sync: whenever a new game is added or an existing one's mechanics/catalog row changes, update `references/implemented-games.md` too — ideally via a re-query of the `games` table so it doesn't drift from Supabase.
 
+`references/game-suggestions.todo.md` es el complemento mirando hacia adelante: el backlog de juegos **candidatos** (próximo recomendado, backlog, implementados, descartados). Lo mantiene el agente `game-planner`; consúltalo antes de decidir qué construir, y no lo edites a mano salvo para corregir un error.
+
 ## Skills
 
 - `/frontend-design` — usa siempre para diseñar o retocar la interfaz de usuario.
@@ -37,6 +39,10 @@ Arcade Vault — plataforma para jugar online y competir por la mayor cantidad d
 - `/spec-juego` — variante especializada de `/spec` para añadir un nuevo juego jugable (portado desde `references/templates/started-games/` o desde cero), ya wireado a `GamePlayer.tsx` y al leaderboard genérico de Supabase. Úsalo en vez de `/spec` cuando la tarea sea "agregar un juego nuevo".
 
 Estas tres skills de spec vienen de `Klerith/fernando-skills` (instaladas vía `npx skills@latest add Klerith/fernando-skills`, ver `skills-lock.json`) y ya están presentes en `.claude/skills/` — el workflow "Spec Driven Design" del README.md está activo, no es solo una intención documentada.
+
+## Agents
+
+- `game-planner` (`.claude/agents/game-planner.md`) — decide **qué juego construir a continuación**. Analiza la tabla `games` de Supabase, `references/implemented-games.md` y las fuentes disponibles en `references/templates/`, razona sobre huecos de categoría/color, solape de mecánicas y esfuerzo bajo el contrato `forwardRef`, y escribe su recomendación con ficha completa en `references/game-suggestions.todo.md`. Va **antes** de `/spec-juego` en el workflow: no escribe specs ni código. Mantiene memoria persistente en `.claude/agent-memory/game-planner/MEMORY.md` (campo `memory: project`, versionada en git), donde guarda preferencias del usuario, restricciones técnicas aprendidas y motivos de descarte — por eso no vuelve a proponer lo que ya se rechazó. Invócalo con `@agent-game-planner`.
 
 ## Next.js 16 — do not rely on pre-v16 training data
 
@@ -54,3 +60,5 @@ Tailwind CSS v4 is wired through `@tailwindcss/postcss` (see `postcss.config.mjs
 ## Workflow convention (per README.md)
 
 Every non-trivial feature goes through `specs/NN-slug.md` first (`/spec` or `/spec-juego` to draft, `/spec-impl` to implement once `Approved`). Check `specs/` for the current numbered history before starting new work — as of this writing it runs 01 (MVP visual) through 09 (Snake), covering the landing page, about/contact, Supabase setup, and each ported game.
+
+Para juegos, el pipeline completo empieza un paso antes: `@agent-game-planner` decide qué juego construir y deja la ficha en `references/game-suggestions.todo.md` → `/spec-juego` redacta `specs/NN-slug.md` en `Draft` → tú lo apruebas → `/spec-impl` lo implementa en la rama `spec-NN-slug`.
