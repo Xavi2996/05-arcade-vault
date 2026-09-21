@@ -1,70 +1,39 @@
 # Memoria — game-planner
 
 El backlog vive en `references/game-suggestions.todo.md` — **esa es la fuente de
-verdad** de qué juegos se proponen y en qué estado están. Esta memoria solo
-guarda el *porqué*: preferencias, lecciones y motivos de descarte. No dupliques
-aquí la lista de candidatos.
+verdad** de qué juegos se proponen y en qué estado están. Esta memoria guarda
+solo el _porqué_. No dupliques aquí la lista de candidatos.
 
-## Preferencias del usuario
+Índice: lee el archivo que toque cuando su línea sea relevante.
 
-_Nada registrado todavía. Anota aquí estilos que le gusten, controles que
-rechace, y cómo prefiere que se presenten las recomendaciones._
+## Cómo trabajar
 
-- En Snake rechazó a propósito el esquema WASD: solo flechas. Posible señal de
-  que prefiere controles mínimos y clásicos. Confirmar antes de generalizar.
+- [Calibración: no recortes el alcance](calibration_dont_narrow_scope.md) — **léelo primero.** Dos veces asumí restricciones más duras que las reales y hubo que deshacer el trabajo.
+- [Preferencias del usuario](user_preferences.md) — controles, alcance, y que puede corregirse a sí mismo.
 
-## Restricciones técnicas aprendidas
+## Restricciones que deciden qué se puede proponer
 
-Contrato que todo juego nuevo debe cumplir (ver `references/implemented-games.md`):
+- [Política de crecimiento del catálogo](catalog_growth_policy.md) — la tabla `games` **SÍ** crece con filas nuevas; coste de una fila y cómo sobrescribir si hiciera falta.
+- [Contrato y gotchas del HUD](platform_game_contract.md) — `forwardRef`, vidas 3–5, `reportedLives = -1`, sin fallback de nivel, los `cover` son CSS a mano.
+- [Constraints de Supabase](supabase_schema_constraints.md) — `score > 0`, `player_name` ≤ 10, FK de `scores`, fuentes agotadas.
+- [2P local en VERSUS](versus_2p_local.md) — aprobado; se persiste siempre el score del Jugador 1, marcador del rival en canvas.
 
-- Componente `"use client"` con
-  `forwardRef<{ restart }, { paused, onScoreChange, onLivesChange, onLevelChange, onGameOver }>`.
-- Se registra por `game.id` en `REAL_GAMES` de `components/GamePlayer.tsx`.
-  El registry ya existe — añadir un juego es una entrada más, no un refactor.
-- `GamePlayer.tsx` es dueño del HUD, la pausa, el modal de fin y el guardado del
-  score. El HUD **asume un jugador** con vidas y nivel.
+## Criterio y contexto
 
-Restricciones de datos (`supabase/migrations/0001_create_games_and_scores.sql`):
-
-- `games.cat` ∈ `ARCADE | PUZZLE | SHOOTER | VERSUS` (check constraint).
-- `games.color` ∈ `cyan | magenta | yellow | green` (check constraint).
-- `scores.player_name` ≤ 10 caracteres; `scores.score > 0` (check constraint).
-  Un juego cuyo score pueda quedar en 0 no podrá guardar partida.
-- `scores` guarda **un solo** `player_name` por fila: un juego 2P necesita
-  definir explícitamente qué score se persiste.
-- RLS solo permite `select` público e `insert` de scores. Sin update ni delete.
-
-Estado de las fuentes:
-
-- Los 3 templates de `references/templates/started-games/` (`02-asteroids`,
-  `03-tetris`, `04-arkanoid`) **ya fueron portados**. No queda template sin usar.
-- Snake se construyó desde assets sueltos en
-  `references/templates/source-assets/snake-assets/`.
-- Por tanto, el próximo juego sale de assets sueltos o desde cero.
-
-## Historial de decisiones
-
-_Ninguna decisión tomada por este agente todavía. Registra aquí cada
-recomendación con su fecha y el motivo principal._
-
-Contexto previo a la existencia de este agente (de `specs/` y git):
-
-- 05 Asteroids (2026-09-16) — primer juego portado, sirve de referencia.
-- 07 Tetris (2026-09-17) — reemplazó la fila de catálogo "Caída".
-- 08 Arkanoid (2026-09-18) — reemplazó la fila "Bloque Buster".
-- 09 Snake (2026-09-18) — reemplazó la fila "Serpentina".
-
-Patrón observado: los juegos nuevos han ido **reemplazando filas de catálogo
-existentes** en vez de crear filas nuevas. Comprobar si el usuario quiere
-seguir así o empezar a añadir filas nuevas.
+- [Ronda de backlog 2026-09-21](backlog_round_2026_09_21.md) — 18 conceptos ya consolidados en el TODO: **no re-derivarlos**. Método, colisiones y decisiones de alcance.
+- [Antipatrones de candidatos](candidate_antipatterns.md) — qué hunde a un juego en la rúbrica, con ejemplo de cada caso.
+- [Historial de decisiones](decision_history.md) — recomendaciones fechadas; `duelo-pixel` es la vigente.
 
 ## Candidatos descartados
 
-_Ninguno todavía._ Cuando descartes uno, anota el motivo y la fecha aquí, y
-refléjalo también en la sección ❌ del TODO.
+Ninguno al 2026-09-21. `tanques-neon` y `mortero-neon` están bloqueados por
+redundancia (perdieron sus colisiones), no por falta de mérito. Cuando descartes
+uno de verdad, anota motivo y fecha en
+[antipatrones](candidate_antipatterns.md) y refléjalo en la sección ❌ del TODO.
 
-## Última sincronización
+## Última sincronización con Supabase
 
-- **2026-09-21** — catálogo sembrado desde Supabase: 4 jugables (arkanoid,
-  asteroids, snake, tetris) y 4 filas con `playable = false` (duelo-pixel,
-  gloton, invasores, ranaria). VERSUS sin ningún juego jugable.
+**2026-09-21** — `select id, title, cat, color, playable from public.games`:
+4 jugables (arkanoid, asteroids, snake, tetris) y 4 filas escritas sin
+implementar (duelo-pixel, gloton, invasores, ranaria). **Sin drift** entre la
+tabla, el TODO e `implemented-games.md`.
