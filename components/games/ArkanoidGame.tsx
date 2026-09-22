@@ -1,9 +1,18 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { DEFAULT_SKIN, resolvePalette, type SkinId } from "@/lib/skins";
+import {
+  ARKANOID_SKINS,
+  PADDLE_SOURCE_BANDS,
+  type ArkanoidPalette,
+  type BlockColor,
+} from "@/components/games/skins/arkanoid";
 
 const W = 800;
 const H = 600;
+/** Proporción del área jugable; la consume .crt-screen en GamePlayer. */
+export const ASPECT = `${W} / ${H}`;
 
 const PADDLE_SPEED = 400;
 const BLOCK_COLS = 10;
@@ -21,9 +30,6 @@ const BALL_SIZE = 16;
 const SPRITESHEET_SRC = "/games/arkanoid/spritesheet-breakout.png";
 const BOUNCE_SOUND_SRC = "/games/arkanoid/sounds/ball-bounce.mp3";
 const BREAK_SOUND_SRC = "/games/arkanoid/sounds/break-sound.mp3";
-
-type BlockColor =
-  "gray" | "red" | "yellow" | "cyan" | "magenta" | "hotpink" | "green";
 
 interface Sprite {
   sx: number;
@@ -96,6 +102,149 @@ const EXPLOSION_FRAMES: Record<BlockColor, Sprite[]> = {
 };
 
 const EXPLOSION_DURATION = 150;
+
+/* ===== retintado del spritesheet =====
+   El color de Arkanoid no está en el código: vive en el PNG. Para que una skin
+   pueda cambiarlo se construye, una sola vez por skin, una copia completa del
+   spritesheet con cada región retintada. `source-atop` respeta el alpha del
+   sprite, así que la silueta y el recorte quedan intactos — que es lo único
+   que una skin no puede tocar. */
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+/**
+ * Por debajo de esto un píxel se considera contorno del sprite y no se tiñe.
+ * Sin este corte, el tinte se come el borde negro que separa cada bloque de su
+ * vecino y las filas se funden en una banda continua. El tono más oscuro que
+ * llega a pintarse es el bloque `gray` (`#323142`, canal máximo 0x42), así que
+ * el umbral distingue contorno de color sin tocar ninguna banda real.
+ */
+const OUTLINE_MAX_CHANNEL = 40;
+
+/**
+ * Tinte plano: aplasta el sombreado de la región a un solo color, respetando
+ * el alpha —y por tanto la silueta— y dejando intacto el contorno negro.
+ */
+function tintRegion(
+  ctx: CanvasRenderingContext2D,
+  sp: Sprite,
+  tint: string,
+): void {
+  const [tr, tg, tb] = hexToRgb(tint);
+  const img = ctx.getImageData(sp.sx, sp.sy, sp.sw, sp.sh);
+  const data = img.data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const maxChannel = Math.max(data[i], data[i + 1], data[i + 2]);
+    if (maxChannel < OUTLINE_MAX_CHANNEL) continue;
+    data[i] = tr;
+    data[i + 1] = tg;
+    data[i + 2] = tb;
+  }
+  ctx.putImageData(img, sp.sx, sp.sy);
+}
+
+/**
+ * Tinte por bandas, solo para la paleta del jugador: un tinte plano le borraría
+ * el bisel y el acento rojo, que son media identidad del sprite. Cada píxel
+ * opaco se asigna a la banda de `PADDLE_SOURCE_BANDS` más cercana en RGB y se
+ * sustituye por lo que la skin le asigne; el contorno negro se mapea a sí mismo.
+ */
+function tintPaddleBands(
+  ctx: CanvasRenderingContext2D,
+  sp: Sprite,
+  paddle: ArkanoidPalette["paddle"],
+): void {
+  const bands: {
+    from: [number, number, number];
+    to: [number, number, number];
+  }[] = [
+    { from: hexToRgb(PADDLE_SOURCE_BANDS.body), to: hexToRgb(paddle.body) },
+    { from: hexToRgb(PADDLE_SOURCE_BANDS.gloss), to: hexToRgb(paddle.gloss) },
+    {
+      from: hexToRgb(PADDLE_SOURCE_BANDS.glossHi),
+      to: hexToRgb(paddle.gloss),
+    },
+    {
+      from: hexToRgb(PADDLE_SOURCE_BANDS.accent),
+      to: hexToRgb(paddle.accent),
+    },
+    {
+      from: hexToRgb(PADDLE_SOURCE_BANDS.accentShadow),
+      to: hexToRgb(paddle.accent),
+    },
+    // El contorno se queda negro: recorta el sprite, no lo colorea.
+    {
+      from: hexToRgb(PADDLE_SOURCE_BANDS.outline),
+      to: hexToRgb(PADDLE_SOURCE_BANDS.outline),
+    },
+  ];
+
+  const img = ctx.getImageData(sp.sx, sp.sy, sp.sw, sp.sh);
+  const data = img.data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    let best = bands[0];
+    let bestDist = Infinity;
+    for (const band of bands) {
+      const dr = data[i] - band.from[0];
+      const dg = data[i + 1] - band.from[1];
+      const db = data[i + 2] - band.from[2];
+      const dist = dr * dr + dg * dg + db * db;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = band;
+      }
+    }
+    data[i] = best.to[0];
+    data[i + 1] = best.to[1];
+    data[i + 2] = best.to[2];
+  }
+  ctx.putImageData(img, sp.sx, sp.sy);
+}
+
+/** Copia completa del spritesheet con todas sus regiones retintadas. */
+function buildTintedSheet(
+  raw: HTMLCanvasElement,
+  p: ArkanoidPalette,
+): HTMLCanvasElement {
+  const oc = document.createElement("canvas");
+  oc.width = raw.width;
+  oc.height = raw.height;
+  // El retintado lee la imagen pixel a pixel para respetar contornos y bandas.
+  // Ocurre una sola vez por skin, pero sin la bandera el navegador avisa.
+  const octx = oc.getContext("2d", { willReadFrequently: true });
+  if (!octx) return raw;
+  octx.drawImage(raw, 0, 0);
+
+  // Bloques y sus explosiones comparten tono. Ojo: las explosiones de `gray`
+  // reutilizan las coordenadas de las de `red`, así que la última que se pinte
+  // gana — igual que hoy, donde un bloque gris ya explota en rojo.
+  for (const color of Object.keys(SPRITES.blocks) as BlockColor[]) {
+    const tint = p.blocks[color];
+    tintRegion(octx, SPRITES.blocks[color], tint);
+    for (const frame of EXPLOSION_FRAMES[color]) tintRegion(octx, frame, tint);
+  }
+
+  if (p.ball) tintRegion(octx, SPRITES.ball, p.ball);
+  tintPaddleBands(octx, SPRITES.paddle, p.paddle);
+
+  return oc;
+}
 
 interface LevelBlock {
   col: number;
@@ -210,6 +359,7 @@ export interface ArkanoidGameHandle {
 
 interface ArkanoidGameProps {
   paused: boolean;
+  skin?: SkinId;
   onScoreChange: (score: number) => void;
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
@@ -218,12 +368,17 @@ interface ArkanoidGameProps {
 
 const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
   function ArkanoidGame(
-    { paused, onScoreChange, onLivesChange, onLevelChange, onGameOver },
+    { paused, skin, onScoreChange, onLivesChange, onLevelChange, onGameOver },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const pausedRef = useRef(paused);
     pausedRef.current = paused;
+
+    // La skin entra por ref, no por dependencia del efecto: el bucle de juego
+    // se monta una sola vez y cambiar de skin no debe reiniciar la partida.
+    const skinRef = useRef<SkinId>(skin ?? DEFAULT_SKIN);
+    skinRef.current = skin ?? DEFAULT_SKIN;
 
     const callbacksRef = useRef({
       onScoreChange,
@@ -257,6 +412,25 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
       let ssImg: HTMLCanvasElement | null = null;
       let ssLoaded = false;
 
+      // Un spritesheet retintado por skin, construido la primera vez que se
+      // pide y reutilizado después: retintar cuesta una pasada, no un frame.
+      const tintedSheets = new Map<SkinId, HTMLCanvasElement>();
+
+      /** El spritesheet que toca dibujar: el crudo en `clasico`, o el tintado. */
+      function sheet(): HTMLCanvasElement | null {
+        if (!ssImg) return null;
+        const id = skinRef.current;
+        const p = resolvePalette(ARKANOID_SKINS, id);
+        // `ball: null` es la marca de "sin retinte": el PNG va tal cual.
+        if (!p.ball) return ssImg;
+        let tinted = tintedSheets.get(id);
+        if (!tinted) {
+          tinted = buildTintedSheet(ssImg, p);
+          tintedSheets.set(id, tinted);
+        }
+        return tinted;
+      }
+
       function drawSprite(
         name: "paddle" | "ball",
         x: number,
@@ -264,9 +438,10 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
         w: number,
         h: number,
       ) {
-        if (!ssLoaded || !ssImg || !context) return;
+        const src = sheet();
+        if (!ssLoaded || !src || !context) return;
         const sp = SPRITES[name];
-        context.drawImage(ssImg, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
+        context.drawImage(src, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
       }
 
       function drawBlockSprite(
@@ -276,9 +451,10 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
         w: number,
         h: number,
       ) {
-        if (!ssLoaded || !ssImg || !context) return;
+        const src = sheet();
+        if (!ssLoaded || !src || !context) return;
         const sp = SPRITES.blocks[color];
-        context.drawImage(ssImg, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
+        context.drawImage(src, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
       }
 
       function drawFrame(
@@ -288,9 +464,10 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
         w: number,
         h: number,
       ) {
-        if (!ssLoaded || !ssImg || !context) return;
+        const src = sheet();
+        if (!ssLoaded || !src || !context) return;
         context.drawImage(
-          ssImg,
+          src,
           frame.sx,
           frame.sy,
           frame.sw,
@@ -473,7 +650,10 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
 
       function draw() {
         if (!context) return;
-        context.fillStyle = "#000";
+        context.fillStyle = resolvePalette(
+          ARKANOID_SKINS,
+          skinRef.current,
+        ).background;
         context.fillRect(0, 0, W, H);
 
         for (const block of blocks) {
@@ -571,7 +751,14 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
         ref={canvasRef}
         width={W}
         height={H}
-        style={{ display: "block", margin: "0 auto", maxWidth: "100%" }}
+        style={{
+          display: "block",
+          margin: "0 auto",
+          width: "auto",
+          height: "100%",
+          maxWidth: "100%",
+          aspectRatio: ASPECT,
+        }}
       />
     );
   },

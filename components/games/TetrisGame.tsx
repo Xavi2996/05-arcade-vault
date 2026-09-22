@@ -1,6 +1,8 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { DEFAULT_SKIN, resolvePalette, type SkinId } from "@/lib/skins";
+import { TETRIS_SKINS } from "@/components/games/skins/tetris";
 
 const COLS = 10;
 const ROWS = 20;
@@ -8,18 +10,9 @@ const BLOCK = 30;
 const W = COLS * BLOCK;
 const H = ROWS * BLOCK;
 const NEXT_SIZE = 120;
-
-const COLORS = [
-  "",
-  "#4dd0e1", // I
-  "#ffd54f", // O
-  "#ba68c8", // T
-  "#81c784", // S
-  "#e57373", // Z
-  "#90caf9", // J
-  "#ffb74d", // L
-  "#9e9e9e", // N (tuerca)
-];
+const GAP = 16;
+/** Tablero + previsualización: la proporción real que ocupa el juego. */
+export const ASPECT = `${W + GAP + NEXT_SIZE} / ${H}`;
 
 const PIECES: number[][][] = [
   [],
@@ -80,6 +73,7 @@ export interface TetrisGameHandle {
 
 interface TetrisGameProps {
   paused: boolean;
+  skin?: SkinId;
   onScoreChange: (score: number) => void;
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
@@ -88,13 +82,20 @@ interface TetrisGameProps {
 
 const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
   function TetrisGame(
-    { paused, onScoreChange, onLivesChange, onLevelChange, onGameOver },
+    { paused, skin, onScoreChange, onLivesChange, onLevelChange, onGameOver },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const nextCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const pausedRef = useRef(paused);
     pausedRef.current = paused;
+
+    // La skin entra por ref, no por dependencia del efecto: el bucle de juego
+    // se monta una sola vez y lee la paleta en cada frame, así cambiarla a
+    // media partida repinta sin reiniciar el tablero.
+    const skinRef = useRef<SkinId>(skin ?? DEFAULT_SKIN);
+    skinRef.current = skin ?? DEFAULT_SKIN;
+    const palette = resolvePalette(TETRIS_SKINS, skin);
 
     const callbacksRef = useRef({
       onScoreChange,
@@ -264,26 +265,51 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
         }
       }
 
+      /** Paleta activa, releída en cada frame desde el ref. */
+      function skin() {
+        return resolvePalette(TETRIS_SKINS, skinRef.current);
+      }
+
       function drawBlock(
         ctx: CanvasRenderingContext2D,
         x: number,
         y: number,
         colorIndex: number,
         size: number,
-        alpha?: number,
+        ghost = false,
       ) {
         if (!colorIndex) return;
-        ctx.globalAlpha = alpha ?? 1;
-        ctx.fillStyle = COLORS[colorIndex];
-        ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-        ctx.fillStyle = "rgba(255,255,255,0.12)";
-        ctx.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+        const p = skin();
+        const i = colorIndex - 1;
+        // El fantasma siempre va sólido: un anillo al 30% sería invisible.
+        const color = ghost ? (p.ghost.color ?? p.pieces[i]) : p.pieces[i];
+        const fill = ghost ? "solid" : p.fills[i];
+        const px = x * size + 1;
+        const py = y * size + 1;
+        const inner = size - 2;
+
+        ctx.globalAlpha = ghost ? p.ghost.alpha : 1;
+        ctx.fillStyle = color;
+        ctx.fillRect(px, py, inner, inner);
+        if (fill === "hollow") {
+          // Vacía el centro dejando un anillo: misma celda, misma hitbox.
+          const border = Math.max(2, Math.round(size * 0.14));
+          ctx.fillStyle = p.background;
+          ctx.fillRect(
+            px + border,
+            py + border,
+            inner - border * 2,
+            inner - border * 2,
+          );
+        }
+        ctx.fillStyle = p.gloss;
+        ctx.fillRect(px, py, inner, 4);
         ctx.globalAlpha = 1;
       }
 
       function drawGrid() {
         if (!context) return;
-        context.strokeStyle = "rgba(255,255,255,0.08)";
+        context.strokeStyle = skin().grid;
         context.lineWidth = 0.5;
         for (let c = 1; c < COLS; c++) {
           context.beginPath();
@@ -312,7 +338,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
 
       function draw() {
         if (!context) return;
-        context.fillStyle = "#000";
+        context.fillStyle = skin().background;
         context.fillRect(0, 0, W, H);
         drawGrid();
 
@@ -330,7 +356,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
                 gy + r,
                 current.shape[r][c],
                 BLOCK,
-                0.2,
+                true,
               );
 
         for (let r = 0; r < current.shape.length; r++)
@@ -447,7 +473,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
       };
     }, []);
 
-    const gap = 16;
+    const gap = GAP;
     const totalW = W + gap + NEXT_SIZE;
     const mainWidthPct = (W / totalW) * 100;
     const gapPct = (gap / totalW) * 100;
@@ -463,17 +489,16 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
           justifyContent: "center",
         }}
       >
-        {/* Fixed intrinsic ratio (board + preview), scaled down via
-            max-width/max-height so it always fits inside .crt-screen
-            instead of overflowing it (canvas pixel sizes never shrink
-            on their own like a plain block element would). */}
+        {/* Proporción fija (tablero + previsualización): toma todo el alto
+            de .crt-screen —que ya viene con esta misma proporción— y deriva
+            el ancho del ratio, porque el tamaño en píxeles de un canvas no
+            escala solo como haría un bloque normal. */}
         <div
           style={{
             aspectRatio: `${totalW} / ${H}`,
-            maxWidth: "100%",
-            maxHeight: "100%",
+            height: "100%",
             width: "auto",
-            height: "auto",
+            maxWidth: "100%",
             display: "flex",
             gap: `${gapPct}%`,
           }}
@@ -493,7 +518,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
               className="pixel"
               style={{
                 fontSize: 10,
-                color: "var(--ink-faint)",
+                color: palette.nextLabel,
                 letterSpacing: "0.1em",
                 marginBottom: 6,
                 textAlign: "center",
@@ -510,7 +535,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
                 width: "100%",
                 height: "auto",
                 aspectRatio: "1 / 1",
-                background: "#000",
+                background: palette.background,
               }}
             />
           </div>
