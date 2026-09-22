@@ -80,7 +80,12 @@ const GAME_ASPECTS: Record<string, string> = {
  * implementadas en `components/games/skins/`. Solo a estos se les muestra el
  * selector. Al dar skins a un juego nuevo, añade aquí su id y nada más.
  */
-const GAMES_WITH_SKINS = new Set<string>(["tetris"]);
+const GAMES_WITH_SKINS = new Set<string>([
+  "tetris",
+  "asteroids",
+  "snake",
+  "arkanoid",
+]);
 
 export default function GamePlayer({ game }: { game: Game }) {
   const RealGame = REAL_GAMES[game.id];
@@ -187,7 +192,13 @@ export default function GamePlayer({ game }: { game: Game }) {
   };
 
   return (
-    <div className="av-player fade-in" data-skin={hasSkins ? skin : undefined}>
+    <div
+      className="av-player fade-in"
+      data-skin={hasSkins ? skin : undefined}
+      // El acento de `neon` es el color de catálogo del juego, no uno de
+      // plataforma: sin esto, el gabinete de Arkanoid brillaría magenta.
+      data-game={hasSkins ? game.id : undefined}
+    >
       <div className="player-hud">
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           <div className="hud-stat">
@@ -281,6 +292,7 @@ export default function GamePlayer({ game }: { game: Game }) {
       <div
         className="crt"
         data-skin={hasSkins ? skin : undefined}
+        data-game={hasSkins ? game.id : undefined}
         style={
           {
             "--screen-aspect": GAME_ASPECTS[game.id] ?? "4 / 3",

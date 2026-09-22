@@ -1,6 +1,11 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { DEFAULT_SKIN, resolvePalette, type SkinId } from "@/lib/skins";
+import {
+  ASTEROIDS_SKINS,
+  type AsteroidsPalette,
+} from "@/components/games/skins/asteroids";
 
 const W = 800;
 const H = 600;
@@ -45,8 +50,8 @@ class Bullet {
     if (this.ttl <= 0) this.dead = true;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.fillStyle = "#fff";
+  draw(ctx: CanvasRenderingContext2D, p: AsteroidsPalette) {
+    ctx.fillStyle = p.bullet;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -106,11 +111,11 @@ class Asteroid {
     ];
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, p: AsteroidsPalette) {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rot);
-    ctx.strokeStyle = "#fff";
+    ctx.strokeStyle = p.asteroid;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -151,18 +156,18 @@ class PowerUp {
     if (this.ttl <= 0) this.dead = true;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, p: AsteroidsPalette) {
     if (this.ttl < 2 && Math.floor(this.ttl * 8) % 2 === 0) return;
     const pulse = 0.85 + Math.sin(performance.now() / 150) * 0.15;
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(Math.PI / 4);
-    ctx.strokeStyle = "#0ff";
+    ctx.strokeStyle = p.powerUp;
     ctx.lineWidth = 2;
     const r = this.radius * pulse;
     ctx.strokeRect(-r, -r, r * 2, r * 2);
     ctx.restore();
-    ctx.fillStyle = "#0ff";
+    ctx.fillStyle = p.powerUpText;
     ctx.font = "bold 12px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -246,7 +251,7 @@ class Ship {
     return [new Bullet(ox, oy, this.angle)];
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, p: AsteroidsPalette) {
     if (this.dead) return;
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0)
       return;
@@ -254,7 +259,7 @@ class Ship {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    ctx.strokeStyle = "#fff";
+    ctx.strokeStyle = p.ship;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = "round";
 
@@ -271,7 +276,7 @@ class Ship {
       ctx.moveTo(-8, -4);
       ctx.lineTo(-8 - rand(6, 14), 0);
       ctx.lineTo(-8, 4);
-      ctx.strokeStyle = "rgba(255, 130, 0, 0.85)";
+      ctx.strokeStyle = p.thrust;
       ctx.stroke();
     }
 
@@ -280,7 +285,7 @@ class Ship {
       ctx.moveTo(16, -5);
       ctx.lineTo(16 + rand(4, 10), 0);
       ctx.lineTo(16, 5);
-      ctx.strokeStyle = "rgba(0, 210, 255, 0.85)";
+      ctx.strokeStyle = p.reverse;
       ctx.stroke();
     }
 
@@ -316,9 +321,9 @@ class Particle {
     if (this.ttl <= 0) this.dead = true;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, p: AsteroidsPalette) {
     const alpha = this.ttl / this.life;
-    ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+    ctx.strokeStyle = `rgba(${p.particleRgb},${alpha.toFixed(2)})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(this.x, this.y);
@@ -335,6 +340,7 @@ export interface AsteroidsGameHandle {
 
 interface AsteroidsGameProps {
   paused: boolean;
+  skin?: SkinId;
   onScoreChange: (score: number) => void;
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
@@ -343,12 +349,17 @@ interface AsteroidsGameProps {
 
 const AsteroidsGame = forwardRef<AsteroidsGameHandle, AsteroidsGameProps>(
   function AsteroidsGame(
-    { paused, onScoreChange, onLivesChange, onLevelChange, onGameOver },
+    { paused, skin, onScoreChange, onLivesChange, onLevelChange, onGameOver },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const pausedRef = useRef(paused);
     pausedRef.current = paused;
+
+    // La skin entra por ref, no por dependencia del efecto: el bucle de juego
+    // se monta una sola vez y cambiar de skin no debe reiniciar la partida.
+    const skinRef = useRef<SkinId>(skin ?? DEFAULT_SKIN);
+    skinRef.current = skin ?? DEFAULT_SKIN;
 
     const callbacksRef = useRef({
       onScoreChange,
@@ -559,14 +570,15 @@ const AsteroidsGame = forwardRef<AsteroidsGameHandle, AsteroidsGameProps>(
 
       function draw() {
         if (!context) return;
-        context.fillStyle = "#000";
+        const p = resolvePalette(ASTEROIDS_SKINS, skinRef.current);
+        context.fillStyle = p.background;
         context.fillRect(0, 0, W, H);
 
-        particles.forEach((p) => p.draw(context));
-        asteroids.forEach((a) => a.draw(context));
-        powerUps.forEach((p) => p.draw(context));
-        bullets.forEach((b) => b.draw(context));
-        ship.draw(context);
+        particles.forEach((particle) => particle.draw(context, p));
+        asteroids.forEach((a) => a.draw(context, p));
+        powerUps.forEach((powerUp) => powerUp.draw(context, p));
+        bullets.forEach((b) => b.draw(context, p));
+        ship.draw(context, p);
       }
 
       function reportChanges() {

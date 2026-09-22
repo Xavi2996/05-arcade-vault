@@ -5,7 +5,10 @@ import {
   FRUIT_SPRITES,
   FRUIT_SPRITE_KEYS,
   FRUIT_SPRITE_SHEET_SRC,
+  type SpriteRect,
 } from "@/components/games/snake-sprites";
+import { DEFAULT_SKIN, resolvePalette, type SkinId } from "@/lib/skins";
+import { SNAKE_SKINS } from "@/components/games/skins/snake";
 
 const COLS = 20;
 const ROWS = 20;
@@ -37,6 +40,54 @@ function getSpriteSheet(): HTMLImageElement {
   return sharedSpriteSheet;
 }
 
+/**
+ * El color de la fruta no está en el código: vive en el spritesheet. Para que
+ * una skin pueda cambiarlo, el recorte se redibuja en un canvas offscreen y se
+ * rellena con `source-atop`, que respeta el alpha del sprite y por tanto su
+ * silueta exacta. El resultado es un color plano —se pierde el dibujo interior
+ * de la fruta— y eso es intencional: es lo que hace medible el contraste.
+ *
+ * El caché vive a nivel de módulo, como el propio spritesheet: un remonte no
+ * debe rehacer 22 canvas. Se indexa por (sprite, tinte), así que alternar entre
+ * skins no invalida lo ya tintado.
+ */
+const tintedSpriteCache = new Map<string, HTMLCanvasElement>();
+
+function getTintedSprite(
+  sheet: HTMLImageElement,
+  spriteKey: string,
+  rect: SpriteRect,
+  tint: string,
+): HTMLCanvasElement | null {
+  const cacheKey = `${spriteKey}|${tint}`;
+  const cached = tintedSpriteCache.get(cacheKey);
+  if (cached) return cached;
+
+  const off = document.createElement("canvas");
+  off.width = rect.w;
+  off.height = rect.h;
+  const offContext = off.getContext("2d");
+  if (!offContext) return null;
+
+  offContext.drawImage(
+    sheet,
+    rect.x,
+    rect.y,
+    rect.w,
+    rect.h,
+    0,
+    0,
+    rect.w,
+    rect.h,
+  );
+  offContext.globalCompositeOperation = "source-atop";
+  offContext.fillStyle = tint;
+  offContext.fillRect(0, 0, rect.w, rect.h);
+
+  tintedSpriteCache.set(cacheKey, off);
+  return off;
+}
+
 interface Cell {
   x: number;
   y: number;
@@ -50,6 +101,7 @@ export interface SnakeGameHandle {
 
 interface SnakeGameProps {
   paused: boolean;
+  skin?: SkinId;
   onScoreChange: (score: number) => void;
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
@@ -58,12 +110,19 @@ interface SnakeGameProps {
 
 const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
   function SnakeGame(
-    { paused, onScoreChange, onLivesChange, onLevelChange, onGameOver },
+    { paused, skin, onScoreChange, onLivesChange, onLevelChange, onGameOver },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const pausedRef = useRef(paused);
     pausedRef.current = paused;
+
+    // La skin entra por ref, no por dependencia del efecto: el bucle de juego
+    // se monta una sola vez y cambiar de skin no debe reiniciar la partida.
+    const skinRef = useRef<SkinId>(skin ?? DEFAULT_SKIN);
+    skinRef.current = skin ?? DEFAULT_SKIN;
+    // El borde y el glow sí son DOM, así que se resuelven en el render.
+    const palette = resolvePalette(SNAKE_SKINS, skin);
 
     const callbacksRef = useRef({
       onScoreChange,
@@ -232,10 +291,11 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
 
       function draw() {
         if (!context) return;
-        context.fillStyle = "#04120a";
+        const p = resolvePalette(SNAKE_SKINS, skinRef.current);
+        context.fillStyle = p.background;
         context.fillRect(0, 0, W, H);
 
-        context.strokeStyle = "rgba(0, 255, 140, 0.06)";
+        context.strokeStyle = p.grid;
         context.lineWidth = 1;
         for (let x = 1; x < COLS; x++) {
           context.beginPath();
@@ -252,10 +312,17 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
 
         if (sharedSpriteSheetLoaded) {
           const rect = FRUIT_SPRITES[food.sprite];
+          const tinted = p.fruitTint
+            ? getTintedSprite(spriteSheet, food.sprite, rect, p.fruitTint)
+            : null;
+          // Sin tinte (clasico) o si el offscreen falla, el PNG va tal cual.
+          const source = tinted ?? spriteSheet;
+          const sx = tinted ? 0 : rect.x;
+          const sy = tinted ? 0 : rect.y;
           context.drawImage(
-            spriteSheet,
-            rect.x,
-            rect.y,
+            source,
+            sx,
+            sy,
             rect.w,
             rect.h,
             food.pos.x * CELL + 1,
@@ -266,7 +333,7 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
         }
 
         snake.forEach((segment, i) => {
-          context.fillStyle = i === 0 ? "#7dffb0" : "#22c55e";
+          context.fillStyle = i === 0 ? p.head : p.body;
           context.fillRect(
             segment.x * CELL + 1,
             segment.y * CELL + 1,
@@ -340,8 +407,8 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
           height: "100%",
           maxWidth: "100%",
           aspectRatio: ASPECT,
-          border: "1px solid rgba(0, 255, 140, 0.35)",
-          boxShadow: "0 0 16px rgba(0, 255, 140, 0.15)",
+          border: `1px solid ${palette.border}`,
+          boxShadow: palette.glow ? `0 0 16px ${palette.glow}` : "none",
         }}
       />
     );

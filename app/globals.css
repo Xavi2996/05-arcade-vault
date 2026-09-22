@@ -1238,6 +1238,37 @@ body:has(.av-player) > #root > footer {
   --skin-inset: rgba(255, 176, 0, 0.14);
 }
 
+/* El acento de `neon` es el color de CATÁLOGO del juego, no uno de plataforma:
+   el magenta de arriba es el de Tetris. GamePlayer pone data-game junto a
+   data-skin para poder calificarlo. `retro` en cambio sí es global —el ámbar de
+   gabinete es un acabado de la máquina, no una identidad por juego— con la
+   única excepción de Snake, cuyo fósforo es verde P1. */
+[data-game="arkanoid"][data-skin="neon"] {
+  --skin-accent: var(--cyan);
+  --skin-glow: rgba(0, 245, 255, 0.4);
+  --skin-halo: rgba(0, 245, 255, 0.07);
+  --skin-inset: rgba(0, 245, 255, 0.18);
+}
+[data-game="asteroids"][data-skin="neon"] {
+  --skin-accent: var(--yellow);
+  --skin-glow: rgba(245, 255, 0, 0.4);
+  --skin-halo: rgba(245, 255, 0, 0.07);
+  --skin-inset: rgba(245, 255, 0, 0.18);
+}
+[data-game="snake"][data-skin="neon"] {
+  --skin-accent: var(--green);
+  --skin-glow: rgba(0, 255, 136, 0.4);
+  --skin-halo: rgba(0, 255, 136, 0.07);
+  --skin-inset: rgba(0, 255, 136, 0.18);
+}
+[data-game="snake"][data-skin="retro"] {
+  --skin-accent: #33ff33;
+  /* El fósforo no tiene halo: el glow se anula, no se recolorea. */
+  --skin-glow: transparent;
+  --skin-halo: rgba(51, 255, 51, 0.05);
+  --skin-inset: rgba(51, 255, 51, 0.14);
+}
+
 .crt {
   position: relative;
   flex: 1;
