@@ -4,6 +4,8 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 const W = 800;
 const H = 600;
+/** Proporción del área jugable; la consume .crt-screen en GamePlayer. */
+export const ASPECT = `${W} / ${H}`;
 
 const PADDLE_SPEED = 400;
 const BLOCK_COLS = 10;
@@ -571,7 +573,14 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
         ref={canvasRef}
         width={W}
         height={H}
-        style={{ display: "block", margin: "0 auto", maxWidth: "100%" }}
+        style={{
+          display: "block",
+          margin: "0 auto",
+          width: "auto",
+          height: "100%",
+          maxWidth: "100%",
+          aspectRatio: ASPECT,
+        }}
       />
     );
   },

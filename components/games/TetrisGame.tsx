@@ -10,6 +10,9 @@ const BLOCK = 30;
 const W = COLS * BLOCK;
 const H = ROWS * BLOCK;
 const NEXT_SIZE = 120;
+const GAP = 16;
+/** Tablero + previsualización: la proporción real que ocupa el juego. */
+export const ASPECT = `${W + GAP + NEXT_SIZE} / ${H}`;
 
 const PIECES: number[][][] = [
   [],
@@ -470,7 +473,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
       };
     }, []);
 
-    const gap = 16;
+    const gap = GAP;
     const totalW = W + gap + NEXT_SIZE;
     const mainWidthPct = (W / totalW) * 100;
     const gapPct = (gap / totalW) * 100;
@@ -486,17 +489,16 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
           justifyContent: "center",
         }}
       >
-        {/* Fixed intrinsic ratio (board + preview), scaled down via
-            max-width/max-height so it always fits inside .crt-screen
-            instead of overflowing it (canvas pixel sizes never shrink
-            on their own like a plain block element would). */}
+        {/* Proporción fija (tablero + previsualización): toma todo el alto
+            de .crt-screen —que ya viene con esta misma proporción— y deriva
+            el ancho del ratio, porque el tamaño en píxeles de un canvas no
+            escala solo como haría un bloque normal. */}
         <div
           style={{
             aspectRatio: `${totalW} / ${H}`,
-            maxWidth: "100%",
-            maxHeight: "100%",
+            height: "100%",
             width: "auto",
-            height: "auto",
+            maxWidth: "100%",
             display: "flex",
             gap: `${gapPct}%`,
           }}

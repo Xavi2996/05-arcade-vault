@@ -1002,20 +1002,46 @@ a {
 }
 
 /* ===== player ===== */
+/* La pantalla de juego se come el viewport entero: el marco de la app pasa a
+   tener alto fijo (así la pantalla puede derivar su ancho de su alto) y el pie
+   desaparece, que ahí solo roba espacio. */
+body:has(.av-player) #root {
+  height: 100dvh;
+  overflow: hidden;
+}
+body:has(.av-player) .av-main {
+  display: flex;
+  flex-direction: column;
+  /* sin esto el mínimo automático de flexbox impide que la columna encoja
+     hasta el viewport y el gabinete se sale por abajo */
+  min-height: 0;
+}
+body:has(.av-player) > #root > footer {
+  display: none;
+}
+
+/* El player no tiene scroll: reclama el alto que queda entre la barra de
+   navegación y el pie, y se lo cede casi entero a la pantalla. */
 .av-player {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   max-width: 1100px;
-  margin: 32px auto;
-  padding: 0 24px 64px;
+  width: 100%;
+  margin: 16px auto;
+  padding: 0 24px;
 }
 .player-hud {
+  flex: none;
   display: flex;
   gap: 16px;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 10px 16px;
   border: 1px solid var(--line);
   background: var(--bg-2);
-  margin-bottom: 18px;
   flex-wrap: wrap;
 }
 .hud-stat {
@@ -1047,6 +1073,9 @@ a {
 .hud-actions {
   display: flex;
   gap: 10px;
+  /* en móvil los cuatro controles no caben en una línea y se salían del
+     viewport, cortando SALIR */
+  flex-wrap: wrap;
 }
 
 /* ===== selector de skin del HUD =====
@@ -1211,12 +1240,18 @@ a {
 
 .crt {
   position: relative;
-  border-radius: 28px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  aspect-ratio: var(--screen-aspect, 4 / 3);
+  max-width: 100%;
+  margin-inline: auto;
+  border-radius: 18px;
   background: #050507;
-  padding: 24px;
+  padding: 10px;
   box-shadow:
-    0 0 0 6px #1b1b22,
-    0 0 0 7px #2a2a35,
+    0 0 0 4px #1b1b22,
+    0 0 0 5px #2a2a35,
     0 30px 80px -20px var(--skin-glow);
   overflow: hidden;
 }
@@ -1233,8 +1268,10 @@ a {
 }
 .crt-screen {
   position: relative;
-  aspect-ratio: 4 / 3;
-  width: min(100%, calc((100dvh - 440px) * 4 / 3));
+  aspect-ratio: var(--screen-aspect, 4 / 3);
+  height: 100%;
+  width: auto;
+  max-width: 100%;
   margin: 0 auto;
   background: #000;
   border-radius: 12px / 28px;
@@ -1277,31 +1314,6 @@ a {
   font-size: 12px;
   text-align: center;
 }
-.crt-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding: 0 8px;
-  font-family: var(--pixel);
-  font-size: 8px;
-  color: var(--ink-faint);
-  letter-spacing: 0.16em;
-}
-.crt-bottom .led {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.crt-bottom .led::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-}
-
 /* fake in-screen game */
 .game-arena {
   position: absolute;
@@ -1800,8 +1812,25 @@ a {
     padding: 0 16px;
     margin: 24px auto;
   }
+  body:has(.av-player) #root {
+    height: auto;
+    overflow: visible;
+  }
   .av-player {
+    flex: none;
     padding: 0 16px 32px;
+  }
+  /* En vertical manda el ancho: el gabinete ocupa la columna entera y la
+     pantalla deriva su alto de la proporción del juego. */
+  .crt {
+    flex: none;
+    width: 100%;
+    aspect-ratio: auto;
+    margin-inline: 0;
+  }
+  .crt-screen {
+    height: auto;
+    width: 100%;
   }
 }
 

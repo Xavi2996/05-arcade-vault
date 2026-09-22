@@ -22,10 +22,18 @@ import {
 } from "@/lib/skins";
 import { getUser, subscribeUser } from "@/lib/session";
 import { saveScore as saveScoreToDb } from "@/lib/scores";
-import AsteroidsGame from "@/components/games/AsteroidsGame";
-import TetrisGame from "@/components/games/TetrisGame";
-import ArkanoidGame from "@/components/games/ArkanoidGame";
-import SnakeGame from "@/components/games/SnakeGame";
+import AsteroidsGame, {
+  ASPECT as ASTEROIDS_ASPECT,
+} from "@/components/games/AsteroidsGame";
+import TetrisGame, {
+  ASPECT as TETRIS_ASPECT,
+} from "@/components/games/TetrisGame";
+import ArkanoidGame, {
+  ASPECT as ARKANOID_ASPECT,
+} from "@/components/games/ArkanoidGame";
+import SnakeGame, {
+  ASPECT as SNAKE_ASPECT,
+} from "@/components/games/SnakeGame";
 
 interface RealGameHandle {
   restart: () => void;
@@ -53,6 +61,18 @@ const REAL_GAMES: Record<string, RealGameComponent> = {
   tetris: TetrisGame,
   arkanoid: ArkanoidGame,
   snake: SnakeGame,
+};
+
+/**
+ * Proporción del área jugable de cada juego. El gabinete la adopta para
+ * recortarse alrededor del juego en vez de dejar franjas negras muertas a los
+ * lados; un juego sin entrada aquí cae al 4/3 clásico de CRT.
+ */
+const GAME_ASPECTS: Record<string, string> = {
+  asteroids: ASTEROIDS_ASPECT,
+  tetris: TETRIS_ASPECT,
+  arkanoid: ARKANOID_ASPECT,
+  snake: SNAKE_ASPECT,
 };
 
 /**
@@ -258,7 +278,15 @@ export default function GamePlayer({ game }: { game: Game }) {
         </div>
       </div>
 
-      <div className="crt" data-skin={hasSkins ? skin : undefined}>
+      <div
+        className="crt"
+        data-skin={hasSkins ? skin : undefined}
+        style={
+          {
+            "--screen-aspect": GAME_ASPECTS[game.id] ?? "4 / 3",
+          } as React.CSSProperties
+        }
+      >
         <div className="crt-screen">
           {RealGame ? (
             <RealGame
@@ -302,11 +330,6 @@ export default function GamePlayer({ game }: { game: Game }) {
               </div>
             </div>
           )}
-        </div>
-        <div className="crt-bottom">
-          <span className="led">SEÑAL OK</span>
-          <span>{game.title} · CRT-83 · 60 HZ</span>
-          <span>CARGA · 1MB</span>
         </div>
       </div>
 

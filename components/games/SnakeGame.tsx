@@ -12,6 +12,8 @@ const ROWS = 20;
 const CELL = 24;
 const W = COLS * CELL;
 const H = ROWS * CELL;
+/** Proporción del área jugable; la consume .crt-screen en GamePlayer. */
+export const ASPECT = `${W} / ${H}`;
 
 const START_STEP_MS = 150;
 const MIN_STEP_MS = 60;
@@ -334,8 +336,10 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
         style={{
           display: "block",
           margin: "0 auto",
+          width: "auto",
+          height: "100%",
           maxWidth: "100%",
-          maxHeight: "100%",
+          aspectRatio: ASPECT,
           border: "1px solid rgba(0, 255, 140, 0.35)",
           boxShadow: "0 0 16px rgba(0, 255, 140, 0.15)",
         }}
