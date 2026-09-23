@@ -8,11 +8,23 @@ import {
   type ArkanoidPalette,
   type BlockColor,
 } from "@/components/games/skins/arkanoid";
+import { subscribeVirtualInput, type TouchControlsLayout } from "@/lib/input";
 
 const W = 800;
 const H = 600;
 /** Proporción del área jugable; la consume .crt-screen en GamePlayer. */
 export const ASPECT = `${W} / ${H}`;
+
+/** Controles táctiles: solo izquierda y derecha, con repetición. La paleta se
+    mueve por botones y no con el dedo sobre el canvas — el control analógico
+    táctil queda fuera de specs/11 a propósito. */
+export const TOUCH_CONTROLS: TouchControlsLayout = {
+  dpad: [
+    { key: "ArrowLeft", glyph: "◀", label: "Izquierda", repeat: true },
+    { key: "ArrowRight", glyph: "▶", label: "Derecha", repeat: true },
+  ],
+  actions: [],
+};
 
 const PADDLE_SPEED = 400;
 const BLOCK_COLS = 10;
@@ -503,6 +515,14 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
       window.addEventListener("keydown", onKeyDown, { passive: false });
       window.addEventListener("keyup", onKeyUp, { passive: false });
 
+      // Los controles táctiles escriben el mismo `keys` que el teclado. Este
+      // juego lee estado sostenido, así que la repetición solo reafirma el
+      // `true` que ya estaba puesto.
+      const unsubscribeInput = subscribeVirtualInput((event) => {
+        if (!(event.key in keys)) return;
+        keys[event.key] = event.type === "down";
+      });
+
       const onMouseMove = (e: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -743,6 +763,7 @@ const ArkanoidGame = forwardRef<ArkanoidGameHandle, ArkanoidGameProps>(
         window.removeEventListener("keydown", onKeyDown);
         window.removeEventListener("keyup", onKeyUp);
         canvas.removeEventListener("mousemove", onMouseMove);
+        unsubscribeInput();
       };
     }, []);
 

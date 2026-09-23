@@ -3,6 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { DEFAULT_SKIN, resolvePalette, type SkinId } from "@/lib/skins";
 import { TETRIS_SKINS } from "@/components/games/skins/tetris";
+import { subscribeVirtualInput, type TouchControlsLayout } from "@/lib/input";
 
 const COLS = 10;
 const ROWS = 20;
@@ -13,6 +14,31 @@ const NEXT_SIZE = 120;
 const GAP = 16;
 /** Tablero + previsualización: la proporción real que ocupa el juego. */
 export const ASPECT = `${W + GAP + NEXT_SIZE} / ${H}`;
+
+/** Controles táctiles: mover y bajar con repetición; rotar y soltar de un
+    toque. ▲ no se pinta porque aquí rotar ya tiene su propio botón, así que
+    su celda queda como hueco superior de la cruz. */
+export const TOUCH_CONTROLS: TouchControlsLayout = {
+  dpad: [
+    {
+      key: "ArrowLeft",
+      glyph: "◀",
+      label: "Mover a la izquierda",
+      repeat: true,
+    },
+    {
+      key: "ArrowRight",
+      glyph: "▶",
+      label: "Mover a la derecha",
+      repeat: true,
+    },
+    { key: "ArrowDown", glyph: "▼", label: "Bajar", repeat: true },
+  ],
+  actions: [
+    { key: "KeyX", glyph: "↻", label: "Rotar", repeat: false },
+    { key: "Space", glyph: "⤓", label: "Soltar pieza", repeat: false },
+  ],
+};
 
 const PIECES: number[][][] = [
   [],
@@ -410,10 +436,11 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
         spawn();
       }
 
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (GAME_KEYS.has(e.code)) e.preventDefault();
-        if (pausedRef.current || gameOverState) return;
-        switch (e.code) {
+      // Teclado y táctil comparten el cuerpo de la acción, pero cada camino
+      // conserva su propia guarda: nada entra aquí en pausa o con la partida
+      // terminada.
+      const handleAction = (code: string) => {
+        switch (code) {
           case "ArrowLeft":
             if (!collide(current.shape, current.x - 1, current.y)) current.x--;
             break;
@@ -432,7 +459,21 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
             break;
         }
       };
+
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (GAME_KEYS.has(e.code)) e.preventDefault();
+        if (pausedRef.current || gameOverState) return;
+        handleAction(e.code);
+      };
       window.addEventListener("keydown", onKeyDown, { passive: false });
+
+      // Solo el `down` actúa: la repetición de los botones ◀ ▶ ▼ llega como
+      // `down` sucesivos, y rotar y soltar no repiten.
+      const unsubscribeInput = subscribeVirtualInput((event) => {
+        if (event.type !== "down") return;
+        if (pausedRef.current || gameOverState) return;
+        handleAction(event.key);
+      });
 
       initGame();
       reportChanges();
@@ -470,6 +511,7 @@ const TetrisGame = forwardRef<TetrisGameHandle, TetrisGameProps>(
       return () => {
         cancelAnimationFrame(frameId);
         window.removeEventListener("keydown", onKeyDown);
+        unsubscribeInput();
       };
     }, []);
 

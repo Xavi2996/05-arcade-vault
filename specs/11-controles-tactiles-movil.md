@@ -24,6 +24,7 @@ El layout ya es responsive — el bloque `@media (max-width: 720px)` de `app/glo
 - Endurecimiento táctil: `touch-action: none` en el canvas y en los controles, `user-select: none` y `-webkit-touch-callout: none` en los botones, `overscroll-behavior: contain` en la pantalla de juego.
 - Revisión de áreas de toque en `app/globals.css`: `.btn`, `.skin-trigger` y los botones del modal de fin de partida pasan a un mínimo de 44×44 px efectivos; el `input` de iniciales sube a `font-size: 16px` para que iOS Safari no haga zoom automático al enfocarlo.
 - Respeto de la zona segura inferior (`env(safe-area-inset-bottom)`) en la barra de controles.
+- Reorganización del HUD en móvil para que juego y controles quepan a la vez sin desplazar: arriba solo la fila de botones (SKIN, PANTALLA, PAUSA, SALIR); puntuación, vidas y nivel bajan a una franja de peso mínimo bajo el gabinete; la barra de navegación de la app y el botón FIN se ocultan durante la partida; y el gabinete pasa a tener un alto máximo derivado del hueco que dejan HUD y controles.
 - Actualización de `references/implemented-games.md` con los controles táctiles de cada juego.
 
 **Out of scope (para futuros specs):**
@@ -101,7 +102,7 @@ Mapa de controles por juego, derivado de lo que cada componente ya escucha hoy:
 | ------------- | ------------------------ | ------------------------------------ | ------------------------------------------------------------------------- |
 | **Snake**     | ▲ ▼ ◀ ▶ (sin repetición) | —                                    | El juego consume una dirección por tick; repetir no aporta nada.          |
 | **Tetris**    | ◀ ▼ ▶ (con repetición)   | ↻ rotar (`KeyX`), ⤓ soltar (`Space`) | ▲ no se pinta: en Tetris `ArrowUp` es rotar y ya tiene su botón dedicado. |
-| **Asteroids** | ▲ ◀ ▶ (con repetición)   | ● disparar (`Space`)                 | ▲ es empuje continuo; disparar no repite.                                 |
+| **Asteroids** | ▲ ▼ ◀ ▶ (con repetición) | ● disparar (`Space`)                 | ▲ empuje y ▼ retroceso, ambos continuos; disparar no repite.              |
 | **Arkanoid**  | ◀ ▶ (con repetición)     | —                                    | Movimiento por botones, no analógico. Decisión cerrada.                   |
 
 Convenciones de la repetición:
@@ -144,6 +145,7 @@ Convenciones de la repetición:
 - [ ] Desde el modal de fin de partida se puede escribir el nombre y pulsar GUARDAR PUNTUACIÓN con el teclado virtual abierto, sin que el botón quede fuera de la pantalla.
 - [ ] La barra de controles no queda tapada por el indicador de inicio del dispositivo (zona segura inferior respetada).
 - [ ] Pausar con PAUSA congela el juego y los controles táctiles no lo reanudan por accidente.
+- [ ] En un móvil de 375×667 o mayor, el gabinete, el HUD y los controles caben a la vez sin desplazar la página en los cuatro juegos.
 - [ ] `references/implemented-games.md` documenta los controles táctiles de los cuatro juegos.
 - [ ] `npm run lint` finaliza sin errores.
 - [ ] `npm run build` finaliza sin errores.
@@ -157,6 +159,11 @@ Convenciones de la repetición:
 - **Sí:** cada juego exporta su `TOUCH_CONTROLS`, igual que ya exporta `ASPECT`. El mapa de controles vive junto al código que interpreta esas teclas; un registro centralizado en `GamePlayer` se desincronizaría al primer cambio de mecánica.
 - **Sí:** activación por `(pointer: coarse)` y no por ancho de viewport. Detecta la capacidad real: una tablet grande los recibe y una ventana de escritorio estrechada no.
 - **Sí:** Arkanoid con botones ◀ ▶ y no con control analógico. Pierde precisión frente al ratón, pero no añade un segundo lenguaje de entrada ni obliga a mapear coordenadas del dedo a coordenadas del canvas. El control analógico táctil queda apuntado para otro spec.
+- **Sí:** durante la partida en móvil desaparecen la barra de navegación (96px) y el botón FIN. La nav no aporta nada jugando y SALIR ya devuelve a la ficha del juego; FIN es el más prescindible de los cinco botones — la partida termina jugando — y sin él los cuatro restantes caben en una sola fila, que vale 55px de juego. En escritorio ambos siguen intactos.
+- **Sí:** el estado de la partida (puntuación, vidas, nivel) vive bajo el gabinete y no sobre él. Es donde cae la mirada mientras se juega, y despeja la franja superior para las acciones.
+- **Sí:** los controles se anclan al fondo del viewport y el gabinete se centra en el hueco sobrante. El pulgar espera los botones abajo, y los `auto` reparten el aire en vez de dejar un vacío que parezca un fallo de maquetación.
+- **Sí:** el gabinete se acota en móvil. Su alto deriva del ancho, así que se acota el ancho: el hueco vertical libre convertido a ancho por la proporción del juego (`--screen-aspect-num`), descontando las filas de botones que ese juego realmente usa (`--touch-rows`: una en Arkanoid, dos en Tetris, tres en Snake y Asteroids). Sin esto el Tetris de un móvil medía 493px de alto y empujaba la cruz fuera de la pantalla. Por debajo de un suelo de 160px se prefiere el desplazamiento a un gabinete ilegible.
+- **Sí:** las filas vacías de la cruz colapsan en vez de reservar su hueco. El spec original las pintaba como hueco vacío; conservan su forma igual porque las columnas siguen siendo fijas, y se recuperan 64px de alto en Tetris y 128px en Arkanoid.
 - **Sí:** vertical es el modo soportado y verificado. Horizontal sigue funcionando — el CSS actual no lo rompe — pero no se optimiza ni entra en los criterios de aceptación.
 - **Sí:** repetición de 250 ms iniciales y 90 ms de intervalo. Es el rango en el que se mueve el auto-repeat del teclado del sistema, que es la sensación que ya tiene el jugador de escritorio en Tetris.
 - **Sí:** botón de pantalla completa sobre `.av-player`. Oculta la barra del navegador, que en móvil se come una franja considerable del viewport. Se degrada limpiamente donde la API no existe (Safari en iPhone no soporta `Element.requestFullscreen`).

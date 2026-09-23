@@ -6,11 +6,34 @@ import {
   ASTEROIDS_SKINS,
   type AsteroidsPalette,
 } from "@/components/games/skins/asteroids";
+import { subscribeVirtualInput, type TouchControlsLayout } from "@/lib/input";
 
 const W = 800;
 const H = 600;
 /** Proporción del área jugable; la consume .crt-screen en GamePlayer. */
 export const ASPECT = `${W} / ${H}`;
+
+/** Controles táctiles: empuje, retroceso y giro con repetición, disparo de un
+    toque. Las cuatro direcciones, porque la nave lee las cuatro. */
+export const TOUCH_CONTROLS: TouchControlsLayout = {
+  dpad: [
+    { key: "ArrowUp", glyph: "▲", label: "Empuje", repeat: true },
+    {
+      key: "ArrowLeft",
+      glyph: "◀",
+      label: "Girar a la izquierda",
+      repeat: true,
+    },
+    {
+      key: "ArrowRight",
+      glyph: "▶",
+      label: "Girar a la derecha",
+      repeat: true,
+    },
+    { key: "ArrowDown", glyph: "▼", label: "Retroceso", repeat: true },
+  ],
+  actions: [{ key: "Space", glyph: "●", label: "Disparar", repeat: false }],
+};
 
 const POWERUP_DROP_CHANCE = 0.15;
 const POWERUP_DURATION = 5;
@@ -413,6 +436,18 @@ const AsteroidsGame = forwardRef<AsteroidsGameHandle, AsteroidsGameProps>(
       window.addEventListener("keydown", onKeyDown, { passive: false });
       window.addEventListener("keyup", onKeyUp, { passive: false });
 
+      // Misma semántica que el teclado sobre el mismo `keys`/`justPressed`:
+      // un `down` con la tecla ya pulsada (la repetición) no vuelve a marcar
+      // `justPressed`, igual que el auto-repeat del sistema.
+      const unsubscribeInput = subscribeVirtualInput((event) => {
+        if (event.type === "up") {
+          keys[event.key] = false;
+          return;
+        }
+        if (!keys[event.key]) justPressed[event.key] = true;
+        keys[event.key] = true;
+      });
+
       const pressed = (code: string) => {
         const val = justPressed[code];
         justPressed[code] = false;
@@ -633,6 +668,7 @@ const AsteroidsGame = forwardRef<AsteroidsGameHandle, AsteroidsGameProps>(
         cancelAnimationFrame(frameId);
         window.removeEventListener("keydown", onKeyDown);
         window.removeEventListener("keyup", onKeyUp);
+        unsubscribeInput();
       };
     }, []);
 
