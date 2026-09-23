@@ -831,20 +831,55 @@ a {
   text-shadow: 0 0 8px var(--yellow);
 }
 
+/* FROGGER — el mapa leído de un vistazo: río arriba, carretera abajo y la
+   rana subiendo por el centro. Los cortes en % replican las zonas reales del
+   canvas (bocas, río, franja segura, carretera, base). */
 .cover-rana {
-  background: linear-gradient(180deg, #001f2a, #0a0a18);
+  background: linear-gradient(
+    180deg,
+    #0a2440 0 55%,
+    #123322 55% 64%,
+    #14141c 64% 92%,
+    #123322 92% 100%
+  );
+}
+.cover-rana::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Atajo `background`, no `background-image`: la sintaxis de posición/tamaño
+     (`… 6% 22% / 100% 7%`) solo es válida en el atajo. Con `background-image`
+     el navegador descarta la declaración entera y no se pinta nada. */
+  background:
+    /* troncos a la deriva */
+    linear-gradient(90deg, #8a5a2b 0 34%, transparent 34%) 6% 22% / 100% 7%
+      no-repeat,
+    linear-gradient(90deg, #8a5a2b 0 26%, transparent 26%) 62% 36% / 100% 7%
+      no-repeat,
+    linear-gradient(90deg, #8a5a2b 0 30%, transparent 30%) 14% 48% / 100% 7%
+      no-repeat,
+    /* carriles de la carretera */
+    repeating-linear-gradient(
+        0deg,
+        transparent 0 12px,
+        rgba(255, 255, 255, 0.07) 12px 13px
+      );
 }
 .cover-rana::after {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(
-      0deg,
-      rgba(0, 245, 255, 0.18) 0 20px,
-      transparent 20px 40px
-    ),
-    radial-gradient(circle at 50% 55%, var(--green) 0 14px, transparent 15px);
+    /* las cinco bocas destino */
+    linear-gradient(var(--green), var(--green)) 8% 5% / 12% 8% no-repeat,
+    linear-gradient(var(--green), var(--green)) 29% 5% / 12% 8% no-repeat,
+    linear-gradient(var(--green), var(--green)) 50% 5% / 12% 8% no-repeat,
+    linear-gradient(var(--green), var(--green)) 71% 5% / 12% 8% no-repeat,
+    linear-gradient(var(--green), var(--green)) 92% 5% / 12% 8% no-repeat,
+    /* coches */ linear-gradient(#ff5c5c, #ff5c5c) 18% 72% / 14% 6% no-repeat,
+    linear-gradient(#ff5c5c, #ff5c5c) 76% 84% / 14% 6% no-repeat,
+    /* la rana */
+    radial-gradient(circle at 50% 95%, var(--green) 0 9px, transparent 10px);
   filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5));
 }
 
@@ -1270,6 +1305,20 @@ body:has(.av-player) > #root > footer {
 [data-game="snake"][data-skin="retro"] {
   --skin-accent: #33ff33;
   /* El fósforo no tiene halo: el glow se anula, no se recolorea. */
+  --skin-glow: transparent;
+  --skin-halo: rgba(51, 255, 51, 0.05);
+  --skin-inset: rgba(51, 255, 51, 0.14);
+}
+[data-game="frogger"][data-skin="neon"] {
+  --skin-accent: var(--green);
+  --skin-glow: rgba(0, 255, 136, 0.4);
+  --skin-halo: rgba(0, 255, 136, 0.07);
+  --skin-inset: rgba(0, 255, 136, 0.18);
+}
+/* Frogger es el segundo fósforo verde del catálogo, junto a Snake: sin esta
+   regla heredaría el ámbar global de gabinete alrededor de un canvas P1. */
+[data-game="frogger"][data-skin="retro"] {
+  --skin-accent: #33ff33;
   --skin-glow: transparent;
   --skin-halo: rgba(51, 255, 51, 0.05);
   --skin-inset: rgba(51, 255, 51, 0.14);

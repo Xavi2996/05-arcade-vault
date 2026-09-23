@@ -38,6 +38,10 @@ import SnakeGame, {
   ASPECT as SNAKE_ASPECT,
   TOUCH_CONTROLS as SNAKE_TOUCH,
 } from "@/components/games/SnakeGame";
+import FroggerGame, {
+  ASPECT as FROGGER_ASPECT,
+  TOUCH_CONTROLS as FROGGER_TOUCH,
+} from "@/components/games/FroggerGame";
 import TouchControls from "@/components/TouchControls";
 import {
   getCoarsePointer,
@@ -72,6 +76,7 @@ const REAL_GAMES: Record<string, RealGameComponent> = {
   tetris: TetrisGame,
   arkanoid: ArkanoidGame,
   snake: SnakeGame,
+  frogger: FroggerGame,
 };
 
 /**
@@ -84,6 +89,7 @@ const GAME_ASPECTS: Record<string, string> = {
   tetris: TETRIS_ASPECT,
   arkanoid: ARKANOID_ASPECT,
   snake: SNAKE_ASPECT,
+  frogger: FROGGER_ASPECT,
 };
 
 /**
@@ -94,6 +100,7 @@ const GAME_ASPECTS: Record<string, string> = {
 const GAME_TOUCH_CONTROLS: Record<string, TouchControlsLayout> = {
   arkanoid: ARKANOID_TOUCH,
   asteroids: ASTEROIDS_TOUCH,
+  frogger: FROGGER_TOUCH,
   snake: SNAKE_TOUCH,
   tetris: TETRIS_TOUCH,
 };
@@ -108,6 +115,7 @@ const GAMES_WITH_SKINS = new Set<string>([
   "asteroids",
   "snake",
   "arkanoid",
+  "frogger",
 ]);
 
 /* Pantalla completa como store externo. Salir con el gesto del sistema no
