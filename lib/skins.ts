@@ -13,10 +13,12 @@ export type SkinId = (typeof SKIN_IDS)[number];
 
 export const DEFAULT_SKIN: SkinId = "clasico";
 
-/** Etiqueta corta para el selector del HUD. */
+/** Etiqueta corta para el selector del HUD. Sin tildes a propósito: la fuente
+    pixel no tiene mayúsculas acentuadas y el navegador las sustituye por otra
+    fuente, así que "CLÁSICO" se veía descuadrado junto a "RETRO". */
 export const SKIN_LABELS: Record<SkinId, string> = {
-  clasico: "CLÁSICO",
-  neon: "NEÓN",
+  clasico: "CLASICO",
+  neon: "NEON",
   retro: "RETRO",
 };
 

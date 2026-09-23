@@ -395,8 +395,13 @@ export default function GamePlayer({ game }: { game: Game }) {
               {fullscreen ? "VENTANA" : "PANTALLA"}
             </button>
           )}
-          <button className="btn yellow" onClick={() => setPaused((p) => !p)}>
-            {paused ? "REANUDAR" : "PAUSA"}
+          <button
+            className="btn yellow hud-pause"
+            onClick={() => setPaused((p) => !p)}
+          >
+            {/* En móvil, "REANUDAR" no cabe en la fila y la parte en dos.
+                "SEGUIR" ocupa lo mismo que "PAUSA". */}
+            {paused ? (coarsePointer ? "SEGUIR" : "REANUDAR") : "PAUSA"}
           </button>
           <button className="btn magenta hud-end" onClick={endGame}>
             FIN

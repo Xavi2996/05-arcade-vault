@@ -1148,6 +1148,9 @@ body:has(.av-player) > #root > footer {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
+  /* El disparador es estrecho en móvil (solo la etiqueta SKIN) y el menú
+     heredaba su ancho, partiendo los nombres de las skins. */
+  min-width: 132px;
   z-index: 30;
   margin: 0;
   padding: 4px;
@@ -2093,6 +2096,10 @@ body:has(.av-player) > #root > footer {
      SALIR sigue permitiendo abandonarla. */
   .hud-end {
     display: none;
+  }
+  /* Ancho estable: si el botón crece al pausar, la fila entera se recoloca. */
+  .hud-pause {
+    min-width: 72px;
   }
   .player-substats {
     display: flex;
