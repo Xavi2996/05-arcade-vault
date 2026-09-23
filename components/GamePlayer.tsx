@@ -24,16 +24,27 @@ import { getUser, subscribeUser } from "@/lib/session";
 import { saveScore as saveScoreToDb } from "@/lib/scores";
 import AsteroidsGame, {
   ASPECT as ASTEROIDS_ASPECT,
+  TOUCH_CONTROLS as ASTEROIDS_TOUCH,
 } from "@/components/games/AsteroidsGame";
 import TetrisGame, {
   ASPECT as TETRIS_ASPECT,
+  TOUCH_CONTROLS as TETRIS_TOUCH,
 } from "@/components/games/TetrisGame";
 import ArkanoidGame, {
   ASPECT as ARKANOID_ASPECT,
+  TOUCH_CONTROLS as ARKANOID_TOUCH,
 } from "@/components/games/ArkanoidGame";
 import SnakeGame, {
   ASPECT as SNAKE_ASPECT,
+  TOUCH_CONTROLS as SNAKE_TOUCH,
 } from "@/components/games/SnakeGame";
+import TouchControls from "@/components/TouchControls";
+import {
+  getCoarsePointer,
+  subscribeCoarsePointer,
+  type TouchControlsLayout,
+  type VirtualKey,
+} from "@/lib/input";
 
 interface RealGameHandle {
   restart: () => void;
@@ -76,6 +87,18 @@ const GAME_ASPECTS: Record<string, string> = {
 };
 
 /**
+ * Controles táctiles de cada juego, en el mismo formato en que cada uno los
+ * declara. Un juego ausente de aquí simplemente no muestra controles: el
+ * teclado sigue siendo su única entrada.
+ */
+const GAME_TOUCH_CONTROLS: Record<string, TouchControlsLayout> = {
+  arkanoid: ARKANOID_TOUCH,
+  asteroids: ASTEROIDS_TOUCH,
+  snake: SNAKE_TOUCH,
+  tetris: TETRIS_TOUCH,
+};
+
+/**
  * Juegos cuyas paletas ya están diseñadas en `references/game-themes.md` e
  * implementadas en `components/games/skins/`. Solo a estos se les muestra el
  * selector. Al dar skins a un juego nuevo, añade aquí su id y nada más.
@@ -86,6 +109,27 @@ const GAMES_WITH_SKINS = new Set<string>([
   "snake",
   "arkanoid",
 ]);
+
+/* Pantalla completa como store externo. Salir con el gesto del sistema no
+   pasa por nuestro botón, así que la etiqueta se sincroniza con el evento. */
+function subscribeFullscreen(onChange: () => void): () => void {
+  document.addEventListener("fullscreenchange", onChange);
+  return () => document.removeEventListener("fullscreenchange", onChange);
+}
+
+function getFullscreen(): boolean {
+  return document.fullscreenElement !== null;
+}
+
+/** `fullscreenEnabled` no cambia en toda la vida del documento: no hay nada a
+    lo que suscribirse, pero el snapshot del servidor sigue siendo `false`. */
+function subscribeNothing(): () => void {
+  return () => {};
+}
+
+function getFullscreenEnabled(): boolean {
+  return document.fullscreenEnabled;
+}
 
 export default function GamePlayer({ game }: { game: Game }) {
   const RealGame = REAL_GAMES[game.id];
@@ -99,6 +143,21 @@ export default function GamePlayer({ game }: { game: Game }) {
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const realGameRef = useRef<RealGameHandle>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+
+  // Mismo patrón de store externo que la skin y la sesión: el servidor no
+  // tiene `document`, así que ambos snapshots nacen en `false` y React
+  // reconcilia tras hidratar, sin un setState en un efecto.
+  const fullscreen = useSyncExternalStore(
+    subscribeFullscreen,
+    getFullscreen,
+    () => false,
+  );
+  const fullscreenAvailable = useSyncExternalStore(
+    subscribeNothing,
+    getFullscreenEnabled,
+    () => false,
+  );
 
   // El servidor no conoce el localStorage del cliente, así que renderiza
   // `clasico` y React reconcilia tras hidratar: sin desajuste de hidratación
@@ -109,6 +168,41 @@ export default function GamePlayer({ game }: { game: Game }) {
     () => DEFAULT_SKIN,
   );
 
+  // Se detecta la capacidad del puntero, no el ancho de la ventana: una
+  // tablet recibe los controles y un escritorio estrechado no. El servidor
+  // renderiza `false` y React los añade tras hidratar, bajo el gabinete, así
+  // que su aparición no desplaza el área jugable.
+  const coarsePointer = useSyncExternalStore(
+    subscribeCoarsePointer,
+    getCoarsePointer,
+    () => false,
+  );
+  const touchLayout = GAME_TOUCH_CONTROLS[game.id];
+
+  // Cuántas filas de botones ocupa la barra: Arkanoid usa una, Tetris dos,
+  // Snake y Asteroids tres. El CSS lo necesita para reservar solo el alto que
+  // esos botones van a ocupar de verdad y dejarle el resto al gabinete.
+  const DPAD_ROWS: VirtualKey[][] = [
+    ["ArrowUp"],
+    ["ArrowLeft", "ArrowRight"],
+    ["ArrowDown"],
+  ];
+  const touchBarRows = touchLayout
+    ? Math.max(
+        DPAD_ROWS.filter((row) =>
+          touchLayout.dpad.some((b) => row.includes(b.key)),
+        ).length,
+        touchLayout.actions.length,
+      )
+    : 0;
+
+  // La proporción, además de como `aspect-ratio`, como número: en móvil el
+  // gabinete deriva su alto del ancho, así que acotarlo por alto exige
+  // convertir el hueco vertical disponible en un ancho máximo.
+  const aspect = GAME_ASPECTS[game.id] ?? "4 / 3";
+  const [aspectW, aspectH] = aspect.split("/").map((n) => Number(n.trim()));
+  const aspectNum = aspectH ? aspectW / aspectH : 4 / 3;
+
   const level = isRealGame ? realLevel : Math.floor(score / 2500) + 1;
   const name = nameOverride ?? sessionUser?.name ?? "INVITADO";
   const hasSkins = isRealGame && GAMES_WITH_SKINS.has(game.id);
@@ -116,6 +210,14 @@ export default function GamePlayer({ game }: { game: Game }) {
   const [skinOpen, setSkinOpen] = useState(false);
   const [skinCursor, setSkinCursor] = useState(0);
   const skinBoxRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      playerRef.current?.requestFullscreen().catch(() => {});
+    }
+  };
 
   useEffect(() => {
     if (!skinOpen) return;
@@ -193,7 +295,12 @@ export default function GamePlayer({ game }: { game: Game }) {
 
   return (
     <div
+      ref={playerRef}
       className="av-player fade-in"
+      // Con la barra de controles ocupando su franja, el gabinete dispone de
+      // bastante menos alto: el CSS lo necesita saber.
+      data-touch={coarsePointer && touchLayout ? "" : undefined}
+      style={{ "--touch-rows": touchBarRows } as React.CSSProperties}
       data-skin={hasSkins ? skin : undefined}
       // El acento de `neon` es el color de catálogo del juego, no uno de
       // plataforma: sin esto, el gabinete de Arkanoid brillaría magenta.
@@ -201,13 +308,13 @@ export default function GamePlayer({ game }: { game: Game }) {
     >
       <div className="player-hud">
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          <div className="hud-stat">
+          <div className="hud-stat player">
             <div className="l">Jugador</div>
             <div className="v" style={{ color: "var(--ink)" }}>
               {name}
             </div>
           </div>
-          <div className="hud-stat">
+          <div className="hud-stat score">
             <div className="l">Puntuación</div>
             <div className="v">{score.toLocaleString("es-ES")}</div>
           </div>
@@ -277,10 +384,26 @@ export default function GamePlayer({ game }: { game: Game }) {
               )}
             </div>
           )}
-          <button className="btn yellow" onClick={() => setPaused((p) => !p)}>
-            {paused ? "REANUDAR" : "PAUSA"}
+          {coarsePointer && fullscreenAvailable && (
+            <button
+              className="btn ghost"
+              onClick={toggleFullscreen}
+              aria-label={
+                fullscreen ? "Salir de pantalla completa" : "Pantalla completa"
+              }
+            >
+              {fullscreen ? "VENTANA" : "PANTALLA"}
+            </button>
+          )}
+          <button
+            className="btn yellow hud-pause"
+            onClick={() => setPaused((p) => !p)}
+          >
+            {/* En móvil, "REANUDAR" no cabe en la fila y la parte en dos.
+                "SEGUIR" ocupa lo mismo que "PAUSA". */}
+            {paused ? (coarsePointer ? "SEGUIR" : "REANUDAR") : "PAUSA"}
           </button>
-          <button className="btn magenta" onClick={endGame}>
+          <button className="btn magenta hud-end" onClick={endGame}>
             FIN
           </button>
           <Link href={`/juegos/${game.id}`} className="btn ghost">
@@ -295,7 +418,8 @@ export default function GamePlayer({ game }: { game: Game }) {
         data-game={hasSkins ? game.id : undefined}
         style={
           {
-            "--screen-aspect": GAME_ASPECTS[game.id] ?? "4 / 3",
+            "--screen-aspect": aspect,
+            "--screen-aspect-num": String(aspectNum),
           } as React.CSSProperties
         }
       >
@@ -344,6 +468,23 @@ export default function GamePlayer({ game }: { game: Game }) {
           )}
         </div>
       </div>
+
+      {/* En móvil el HUD de arriba se queda solo con los botones; el estado de
+          la partida baja aquí, a una franja pegada a los controles, donde cae
+          la mirada mientras se juega. En escritorio este bloque no existe. */}
+      <div className="player-substats">
+        <span className="ps-score" aria-label="Puntuación">
+          {score.toLocaleString("es-ES")}
+        </span>
+        <span className="ps-lives" aria-label={`${lives} vidas`}>
+          {"♥ ".repeat(lives).trim() || "—"}
+        </span>
+        <span className="ps-level" aria-label={`Nivel ${level}`}>
+          NV {String(level).padStart(2, "0")}
+        </span>
+      </div>
+
+      {coarsePointer && touchLayout && <TouchControls layout={touchLayout} />}
 
       {over && (
         <div className="modal-bd">

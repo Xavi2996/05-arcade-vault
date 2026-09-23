@@ -9,6 +9,7 @@ import {
 } from "@/components/games/snake-sprites";
 import { DEFAULT_SKIN, resolvePalette, type SkinId } from "@/lib/skins";
 import { SNAKE_SKINS } from "@/components/games/skins/snake";
+import { subscribeVirtualInput, type TouchControlsLayout } from "@/lib/input";
 
 const COLS = 20;
 const ROWS = 20;
@@ -17,6 +18,18 @@ const W = COLS * CELL;
 const H = ROWS * CELL;
 /** Proporción del área jugable; la consume .crt-screen en GamePlayer. */
 export const ASPECT = `${W} / ${H}`;
+
+/** Controles táctiles: las cuatro direcciones, sin repetición. El juego
+    consume una dirección por tick, así que mantener pulsado no aporta nada. */
+export const TOUCH_CONTROLS: TouchControlsLayout = {
+  dpad: [
+    { key: "ArrowUp", glyph: "▲", label: "Arriba", repeat: false },
+    { key: "ArrowLeft", glyph: "◀", label: "Izquierda", repeat: false },
+    { key: "ArrowRight", glyph: "▶", label: "Derecha", repeat: false },
+    { key: "ArrowDown", glyph: "▼", label: "Abajo", repeat: false },
+  ],
+  actions: [],
+};
 
 const START_STEP_MS = 150;
 const MIN_STEP_MS = 60;
@@ -164,15 +177,28 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
 
       let pendingDirection: Cell | null = null;
 
+      // Un solo camino para teclado y controles táctiles: los dos escriben el
+      // mismo `pendingDirection` que consume el tick.
+      const applyDirection = (code: string) => {
+        if (code === "ArrowUp") pendingDirection = { x: 0, y: -1 };
+        else if (code === "ArrowDown") pendingDirection = { x: 0, y: 1 };
+        else if (code === "ArrowLeft") pendingDirection = { x: -1, y: 0 };
+        else if (code === "ArrowRight") pendingDirection = { x: 1, y: 0 };
+      };
+
       const onKeyDown = (e: KeyboardEvent) => {
         if (!GAME_KEYS.has(e.code)) return;
         e.preventDefault();
-        if (e.code === "ArrowUp") pendingDirection = { x: 0, y: -1 };
-        else if (e.code === "ArrowDown") pendingDirection = { x: 0, y: 1 };
-        else if (e.code === "ArrowLeft") pendingDirection = { x: -1, y: 0 };
-        else if (e.code === "ArrowRight") pendingDirection = { x: 1, y: 0 };
+        applyDirection(e.code);
       };
       window.addEventListener("keydown", onKeyDown, { passive: false });
+
+      // El juego consume una dirección por tick, así que solo importa el
+      // `down`: mantener pulsado no aporta nada.
+      const unsubscribeInput = subscribeVirtualInput((event) => {
+        if (event.type !== "down" || !GAME_KEYS.has(event.key)) return;
+        applyDirection(event.key);
+      });
 
       let snake: Cell[] = [];
       let direction: Cell = { x: 1, y: 0 };
@@ -392,6 +418,7 @@ const SnakeGame = forwardRef<SnakeGameHandle, SnakeGameProps>(
       return () => {
         cancelAnimationFrame(frameId);
         window.removeEventListener("keydown", onKeyDown);
+        unsubscribeInput();
       };
     }, []);
 

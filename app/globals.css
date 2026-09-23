@@ -1032,6 +1032,9 @@ body:has(.av-player) > #root > footer {
   width: 100%;
   margin: 16px auto;
   padding: 0 24px;
+  /* Corta el encadenamiento del scroll: un arrastre que empiece aquí no se
+     propaga al documento ni dispara el pull-to-refresh del navegador. */
+  overscroll-behavior: contain;
 }
 .player-hud {
   flex: none;
@@ -1145,6 +1148,9 @@ body:has(.av-player) > #root > footer {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
+  /* El disparador es estrecho en móvil (solo la etiqueta SKIN) y el menú
+     heredaba su ancho, partiendo los nombres de las skins. */
+  min-width: 132px;
   z-index: 30;
   margin: 0;
   padding: 4px;
@@ -1334,6 +1340,16 @@ body:has(.av-player) > #root > footer {
   );
   pointer-events: none;
 }
+/* El dedo sobre el área jugable es entrada del juego, no un gesto de la
+   página: sin esto, arrastrar para mover la paleta hace scroll. Se aplica al
+   canvas y no a `.av-player`, para que el resto de la pantalla siga
+   desplazable con el dedo. */
+.crt-screen canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .crt-content {
   position: absolute;
   inset: 0;
@@ -1479,6 +1495,9 @@ body:has(.av-player) > #root > footer {
   border: 1px solid var(--line);
   outline: 0;
   font-family: var(--mono);
+  /* Por debajo de 16px, iOS Safari hace zoom automático al enfocar y deja el
+     botón de guardar fuera de la pantalla. */
+  font-size: 16px;
 }
 .modal .input-row input:focus {
   border-color: var(--cyan);
@@ -1820,6 +1839,171 @@ body:has(.av-player) > #root > footer {
   }
 }
 
+/* Franja de estado secundario bajo el gabinete. Solo existe en móvil: en
+   escritorio toda la información cabe arriba y este bloque se apaga. */
+.player-substats {
+  display: none;
+}
+
+/* ===== áreas de toque =====
+   Con un dedo no se acierta un objetivo de 36px sin suerte. Se usa la
+   capacidad del puntero y no el ancho, igual que los controles del juego: en
+   escritorio con ratón los botones conservan su tamaño original. */
+@media (pointer: coarse) {
+  .btn,
+  .skin-trigger {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .skin-menu li {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+}
+
+/* Con el teclado virtual abierto la mitad inferior de la pantalla desaparece:
+   el modal se ancla arriba y se desplaza, y el botón de guardar baja a su
+   propia línea en vez de quedar reducido a una astilla junto al input. */
+@media (max-width: 720px) {
+  .modal-bd {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .modal {
+    padding: 24px 18px;
+  }
+  .modal .input-row {
+    flex-wrap: wrap;
+  }
+  .modal .input-row input {
+    flex: 1 1 100%;
+  }
+  .modal .input-row .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* En pantalla completa el player es la raíz visible: sin fondo propio, el
+   navegador lo pinta sobre negro y el gabinete queda flotando. */
+.av-player:fullscreen {
+  max-width: none;
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+/* ===== controles táctiles =====
+   Viven bajo el gabinete, nunca encima: el pulgar no debe tapar el área
+   jugable, y así ningún efecto del CRT (scanlines, viñeta) contamina los
+   botones. No hay media query que los oculte — es GamePlayer quien decide si
+   existen, según la capacidad del puntero. */
+.touch-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  /* Con acciones, cruz y botones se van a los extremos (un pulgar en cada
+     lado). Sin ellas, la cruz sola se centra en vez de quedar descolgada. */
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  padding: 14px 4px;
+  /* La zona segura evita que el indicador de inicio del dispositivo se coma
+     la fila inferior de la cruz. */
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.touch-controls:has(.touch-actions) {
+  justify-content: space-between;
+}
+
+/* Rejilla 3×3 con celdas por nombre: cada dirección ocupa siempre la misma,
+   así la cruz conserva su forma en los juegos de dos o tres direcciones. */
+.touch-dpad {
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
+  grid-template-columns: repeat(3, clamp(56px, 19vw, 72px));
+  /* Las filas se dimensionan por su contenido: la de ▲ en Tetris, o las de
+     ▲ y ▼ en Arkanoid, colapsan a cero en vez de reservar 64px de alto que
+     empujarían el juego fuera de la pantalla. Las columnas sí son fijas, que
+     son las que mantienen ◀ ▶ a los lados y ▼ centrado. */
+  grid-template-rows: repeat(3, auto);
+  gap: 6px;
+}
+.touch-dpad-up {
+  grid-area: up;
+}
+.touch-dpad-left {
+  grid-area: left;
+}
+.touch-dpad-right {
+  grid-area: right;
+}
+.touch-dpad-down {
+  grid-area: down;
+}
+
+/* En columna y no en fila: las dos acciones de Tetris junto a la cruz no
+   caben en el ancho de un móvil pequeño. */
+.touch-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.touch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: clamp(56px, 19vw, 72px);
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 80ms linear,
+    color 80ms linear;
+}
+.touch-btn:active {
+  background: var(--bg-3);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  text-shadow: 0 0 8px rgba(0, 245, 255, 0.55);
+}
+.touch-action {
+  width: clamp(56px, 19vw, 72px);
+  height: clamp(56px, 19vw, 72px);
+  border-radius: 50%;
+  font-size: 24px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .touch-btn {
+    transition: none;
+  }
+}
+
 @media (max-width: 720px) {
   .hall-table .th,
   .hall-table .tr {
@@ -1847,17 +2031,138 @@ body:has(.av-player) > #root > footer {
     height: auto;
     overflow: visible;
   }
+  /* Jugando, la barra de navegación son 96px que el juego necesita más que
+     el jugador: SALIR ya devuelve a la ficha del juego. */
+  body:has(.av-player) .av-nav {
+    display: none;
+  }
   .av-player {
     flex: none;
-    padding: 0 16px 32px;
+    margin: 0 auto;
+    padding: 0 16px 12px;
+    /* Sin barra de navegación, la pantalla de juego es el viewport entero.
+       Reclamarlo permite empujar los controles al fondo, que es donde el
+       pulgar los espera, en vez de dejarlos colgando bajo el gabinete. */
+    min-height: 100dvh;
+  }
+  .touch-controls {
+    margin-top: auto;
+  }
+  /* Los dos `auto` se reparten el hueco sobrante: gabinete y marcador quedan
+     centrados entre la fila de botones y los controles, sin un vacío que
+     parezca un error de maquetación. */
+  .crt {
+    margin-top: auto;
+  }
+  .player-substats {
+    margin-bottom: auto;
+  }
+  /* Jugando solo se mira el marcador: sube de tamaño, pierde la etiqueta y se
+     queda solo con los botones. Vidas, nivel y nombre bajan a la franja de
+     abajo, que así libera el alto que obligaba a desplazar para ver la cruz. */
+  .player-hud {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  /* Los cinco controles en dos filas se comían 100px de alto. Con el texto
+     más apretado entran en una, sin bajar de los 44px de área de toque. */
+  .player-hud .btn,
+  .player-hud .skin-trigger {
+    padding: 10px 8px;
+    font-size: 8px;
+    letter-spacing: 0.06em;
+    gap: 4px;
+  }
+  .hud-actions {
+    gap: 6px;
+  }
+  /* El selector se queda en la etiqueta: "SKIN RETRO" ocupaba 141px de los
+     337 de la fila y empujaba SALIR a una segunda línea. La skin activa se
+     ve al abrir el menú, que es cuando importa. */
+  .skin-trigger .v {
+    display: none;
+  }
+  /* Arriba solo acciones. Puntuación, vidas y nivel viven abajo, junto a los
+     controles: ahí es donde está la mirada mientras se juega, y cada fila que
+     desaparece de aquí es alto que gana el juego. */
+  .player-hud .hud-stat {
+    display: none;
+  }
+  .player-hud {
+    justify-content: center;
+  }
+  /* Cinco botones no caben en una línea de 360px, y una segunda fila cuesta
+     55px de juego. FIN es el prescindible: la partida termina jugando, y
+     SALIR sigue permitiendo abandonarla. */
+  .hud-end {
+    display: none;
+  }
+  /* Ancho estable: si el botón crece al pausar, la fila entera se recoloca. */
+  .hud-pause {
+    min-width: 72px;
+  }
+  .player-substats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 4px;
+    font-family: var(--pixel);
+    font-size: 11px;
+    line-height: 1;
+  }
+  /* Reglas de panel en vez de puntos de separación: es una franja de máquina,
+     no una línea de metadatos. */
+  .player-substats > * + * {
+    padding-left: 12px;
+    border-left: 1px solid var(--line-2);
+  }
+  .ps-score {
+    font-size: 14px;
+    color: var(--cyan);
+    text-shadow: 0 0 8px rgba(0, 245, 255, 0.5);
+  }
+  .ps-lives {
+    color: var(--magenta);
+  }
+  .ps-level {
+    color: var(--yellow);
+  }
+  /* La franja ya separa del gabinete: el aire de arriba sobra. */
+  .touch-controls {
+    padding-top: 6px;
   }
   /* En vertical manda el ancho: el gabinete ocupa la columna entera y la
-     pantalla deriva su alto de la proporción del juego. */
+     pantalla deriva su alto de la proporción del juego. Pero ese alto no
+     puede crecer sin límite, o el juego empuja los controles fuera de la
+     pantalla y hay que desplazar para jugar. Como el alto viene del ancho,
+     se acota el ancho: el hueco vertical libre, convertido a ancho por la
+     proporción del juego. El `max()` deja un suelo jugable — por debajo de
+     ese tamaño se prefiere el desplazamiento a un gabinete diminuto. */
   .crt {
     flex: none;
     width: 100%;
     aspect-ratio: auto;
-    margin-inline: 0;
+    margin-inline: auto;
+    max-width: min(
+      100%,
+      max(220px, calc((100dvh - 150px) * var(--screen-aspect-num, 1.333)))
+    );
+  }
+  /* El hueco que hay que reservar depende de cuántas filas de botones tenga
+     el juego: Arkanoid una, Tetris dos, Snake y Asteroids tres. Cada fila son
+     64px de botón más 6 de separación; el resto es el marco de la pantalla. */
+  .av-player[data-touch] .crt {
+    max-width: min(
+      100%,
+      max(
+        160px,
+        calc(
+          (100dvh - 150px - var(--touch-rows, 3) * 78px) *
+            var(--screen-aspect-num, 1.333)
+        )
+      )
+    );
   }
   .crt-screen {
     height: auto;
