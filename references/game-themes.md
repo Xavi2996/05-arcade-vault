@@ -25,17 +25,24 @@ Contrastes mínimos sobre el fondo del canvas: **≥ 3:1** elemento jugable, **�
 | --------- | ----------- | -------------- | ---------------------------- | ----------------------- |
 | ARKANOID  | `arkanoid`  | cyan           | `clasico` · `neon` · `retro` | implementado 2026-09-22 |
 | ASTEROIDS | `asteroids` | yellow         | `clasico` · `neon` · `retro` | implementado 2026-09-22 |
+| FROGGER   | `frogger`   | green          | `clasico` · `neon` · `retro` | diseñado 2026-09-23     |
 | SNAKE     | `snake`     | green          | `clasico` · `neon` · `retro` | implementado 2026-09-22 |
 | TETRIS    | `tetris`    | magenta        | `clasico` · `neon` · `retro` | implementado 2026-09-22 |
 
 Solo entran aquí los juegos jugables (`playable = true`, presentes en `REAL_GAMES` de
 `components/GamePlayer.tsx`). Ver `references/implemented-games.md`.
 
-> **Las cuatro fichas están implementadas.** Cada juego tiene su paleta en
-> `components/games/skins/<id>.ts`, acepta la prop `skin` y está listado en `GAMES_WITH_SKINS`
-> (`components/GamePlayer.tsx`). Los apartados **Integración** y **Render y prerrequisitos** de cada
-> ficha describen el estado del código **en el momento de diseñarla**, así que hablan en futuro de
-> cosas que ya están hechas: léelos como la justificación del diseño, no como trabajo pendiente.
+> **Cuatro de las cinco fichas están implementadas** (arkanoid, asteroids, snake, tetris). Cada una
+> tiene su paleta en `components/games/skins/<id>.ts`, acepta la prop `skin` y está listada en
+> `GAMES_WITH_SKINS` (`components/GamePlayer.tsx`). Los apartados **Integración** y **Render y
+> prerrequisitos** de esas cuatro describen el estado del código **en el momento de diseñarlas**, así
+> que hablan en futuro de cosas que ya están hechas: léelos como la justificación del diseño, no como
+> trabajo pendiente.
+>
+> **FROGGER es la excepción: está diseñado pero todavía no implementado.** Ahí sí, su **Integración**
+> y sus **Riesgos** son trabajo pendiente real — falta `components/games/skins/frogger.ts`, falta
+> añadir `"frogger"` a `GAMES_WITH_SKINS` y falta su acento `[data-game="frogger"]` en
+> `app/globals.css`.
 
 ## Fichas
 
@@ -913,3 +920,333 @@ para Asteroids no hay que construir nada nuevo — solo enchufarlo:
   frame a 60 fps; un `shadowBlur` por entidad lo mata. El glow va en CSS sobre `.crt-screen`.
 - **El HUD de Asteroids muestra vidas** (`onLivesChange`): las vidas son DOM de `GamePlayer.tsx` y ya
   se retematizan solas por `data-skin`. Ninguna skin tiene que tocarlas.
+
+### FROGGER (`frogger`)
+
+**Render:** constante `DRAFT_PALETTE` a nivel de módulo (`components/games/FroggerGame.tsx:71-89`),
+tipada por `export interface FroggerPalette` (`:51-69`). `draw()` (`:996-1004`) consume **solo roles**,
+nunca literales: `drawBands` `:738`, `drawGoals` `:809`, `drawCar` `:829`, `drawTruck` `:844`,
+`drawLog` `:861`, `drawTurtles` `:873`, `drawHud` `:945`, `drawFrog` `:979`. Borde y glow salen del
+`style` inline del `<canvas>` (`:1082-1083`) ·
+**Fondo:** **no hay uno solo.** Canvas 640x560, rejilla 16x14 de 40 px, y cada zona pinta su propia
+franja sobre `background`: `riverBand` filas 1-6, `safeBand` filas 7 y 13, `roadBand` filas 8-12.
+`background` solo queda a la vista en la fila 0 (bocas + HUD interno de 16 px). Cada rol de abajo está
+medido **contra la franja sobre la que de verdad se dibuja**.
+**Diseñado:** 2026-09-23
+
+**Nota de arquitectura (la buena):** Frogger nace con la paleta ya extraída. `DRAFT_PALETTE` está
+marcada como provisional en el propio componente y el `forwardRef` **ya declara `skin`** y lo guarda en
+`skinRef` (`:362-366`). No hay ni un hex suelto en el bucle de dibujo, no hay spritesheet, no hay
+`shadowBlur` ni `shadowColor`. Es el caso trivial del manual: la skin es otro objeto.
+
+**Nota de superficie:** dos roles se ven en muy poca área y por eso se les da margen por encima del
+mínimo en `neon` y `retro`:
+
+- `turtleSubmerged` se pinta **solo como contorno de 2 px** (`strokeStyle`, sin relleno, `:891-897`).
+  Es la diferencia entre plataforma y muerte con la menor superficie de todo el juego.
+- `frogEye` son dos círculos de `r * 0.24` dentro del cuerpo de la rana.
+
+**Nota de roles compuestos:** tres dibujos reutilizan un color de franja como detalle interior, así
+que ese par también está medido: las **vetas del tronco** y la **escama de la tortuga** usan
+`riverBand`, y las **ruedas, parabrisas y franja de cabina** de coche y camión usan `roadBand`.
+Además, `frogShape()` se reutiliza en tres sitios con colores distintos: la rana jugable
+(`frog` + `frogEye`), la boca ocupada (`goalFilled` + `goalEmpty`) y los **iconos de vida del HUD**
+(`frog` + `hud`, `:970`) — por eso `hud` vs `frog` aparece medido abajo.
+
+**Nota de barra de tiempo:** `timerBar` es **un solo color**, no un degradado verde-amarillo-rojo. La
+urgencia la transmiten la longitud y el parpadeo a `globalAlpha 0.35` por debajo del 25 %
+(`:954-958`). Ninguna skin debe introducir un segundo color de barra: sería un hex sin medir.
+
+#### clasico (default)
+
+Transcripción literal de `DRAFT_PALETTE`. No se retoca nada; lo que no pasa se documenta como deuda.
+
+| Rol                          | Hex                    | Medido contra | Contraste  |
+| ---------------------------- | ---------------------- | ------------- | ---------- |
+| Fondo base (fila 0)          | `#04120a`              | —             | base       |
+| Franja de carretera          | `#14141c`              | `background`  | 1.05:1 ⚠️  |
+| Franja de río                | `#0a2440`              | `background`  | 1.22:1 ⚠️  |
+| Franja segura                | `#123322`              | `background`  | 1.39:1 ⚠️  |
+| Coche                        | `#ff5c5c`              | `roadBand`    | 6.05:1 ✅  |
+| Camión                       | `#c8ccd4`              | `roadBand`    | 11.38:1 ✅ |
+| Tronco                       | `#8a5a2b`              | `riverBand`   | 2.67:1 ❌  |
+| Tortuga visible              | `#3fa66a`              | `riverBand`   | 5.13:1 ✅  |
+| Tortuga sumergida (contorno) | `#1c4a33`              | `riverBand`   | 1.55:1 ❌  |
+| Rana — sobre carretera       | `#7dffb0`              | `roadBand`    | 14.65:1 ✅ |
+| Rana — sobre río             | `#7dffb0`              | `riverBand`   | 12.55:1 ✅ |
+| Rana — sobre franja segura   | `#7dffb0`              | `safeBand`    | 11.04:1 ✅ |
+| Ojos de la rana              | `#ffffff`              | `frog`        | 1.25:1 ⚠️  |
+| Boca destino libre           | `#1a4d33`              | `background`  | 1.96:1 ❌  |
+| Boca destino ocupada         | `#7dffb0`              | `background`  | 15.33:1 ✅ |
+| Texto del HUD (12 px)        | `#d8ffe8`              | `background`  | 17.69:1 ✅ |
+| Barra de tiempo              | `#00ff88`              | `background`  | 14.29:1 ✅ |
+| Borde 1px del canvas         | `rgba(0,255,140,0.35)` | `--bg`        | 2.58:1 ✅  |
+| Glow del marco (CSS)         | `rgba(0,255,140,0.15)` | `--bg`        | 1.36:1 ⚠️  |
+
+**Deuda visual de `clasico` (medida, no estimada):**
+
+- **La tortuga sumergida está en 1.55:1 sobre el agua** — menos de la mitad del 3:1 exigido a un
+  elemento jugable, y encima con la menor superficie del juego (contorno de 2 px). El elemento que
+  decide si el jugador se ahoga es el **menos visible de la pantalla**. Es la peor deuda de la ficha.
+- **El tronco está en 2.67:1**, por debajo del 3:1. Y sus vetas, que son `riverBand`, se leen sobre un
+  marrón ya de por sí apagado.
+- **La boca destino libre está en 1.96:1** sobre el fondo. Se salva porque `drawGoals` le pinta encima
+  un contorno de 2 px en `goalFilled` (`#7dffb0`, 15.33:1), así que el hueco se ve por su marco, no por
+  su relleno. El relleno en sí casi no aporta.
+- **Las tres franjas están entre 1.05:1 y 1.39:1** contra el fondo, todas por debajo del mínimo de
+  decorado. Entre ellas es peor todavía: `safeBand`/`riverBand` **1.14:1**, `riverBand`/`roadBand`
+  **1.17:1**, `safeBand`/`roadBand` **1.33:1**. La franja segura, que es el único descanso del mapa,
+  apenas se distingue del asfalto.
+- **Los ojos de la rana están en 1.25:1** sobre su propio cuerpo (`#ffffff` sobre `#7dffb0`): casi no
+  se ven, y con ellos se pierde la orientación de la rana.
+- **Los iconos de vida del HUD son casi planos:** cuerpo `frog` `#7dffb0` con ojo `hud` `#d8ffe8` =
+  **1.15:1**. Se leen como manchas, no como ranas.
+- **Rana vs camión: 1.29:1** (`#7dffb0` vs `#c8ccd4`). No es un par obligatorio —tocarlo es morir— pero
+  en el frame del impacto la rana desaparece dentro de la caja del camión.
+- **El glow del marco está en 1.36:1**, por debajo de 1.5:1.
+- Lo que sí resuelve el default: los **seis pares obligatorios pasan** (ver Diferenciación).
+
+#### neon
+
+Ancla de catálogo: **green** (`--green #00ff88`), y va **en la rana** — es el protagonista y el único
+elemento que recorre las tres zonas. A partir de ahí, cada zona toma su propia familia de matiz para
+que el jugador nunca tenga que comparar dos cosas del mismo tono: **río en cian** (tortugas) con el
+tronco en **ámbar** como único cuerpo cálido flotando, y **carretera en magenta + azul hielo**. El
+glow, solo en CSS.
+
+| Rol                          | Hex                    | Medido contra | Contraste  |
+| ---------------------------- | ---------------------- | ------------- | ---------- |
+| Fondo base (fila 0)          | `#03070f`              | —             | base       |
+| Franja de carretera          | `#0e0e18`              | `background`  | 1.05:1 ⚠️  |
+| Franja de río                | `#020f20`              | `background`  | 1.05:1 ⚠️  |
+| Franja segura                | `#10422c`              | `background`  | 1.77:1 ✅  |
+| Coche                        | `#ff2d6f`              | `roadBand`    | 5.35:1 ✅  |
+| Camión                       | `#9ab4dd`              | `roadBand`    | 9.09:1 ✅  |
+| Tronco                       | `#ff9e42`              | `riverBand`   | 9.36:1 ✅  |
+| Tortuga visible              | `#0f9fb5`              | `riverBand`   | 6.09:1 ✅  |
+| Tortuga sumergida (contorno) | `#0d7d92`              | `riverBand`   | 4.00:1 ✅  |
+| Rana — sobre carretera       | `#00ff88` (`--green`)  | `roadBand`    | 14.31:1 ✅ |
+| Rana — sobre río             | `#00ff88`              | `riverBand`   | 14.34:1 ✅ |
+| Rana — sobre franja segura   | `#00ff88`              | `safeBand`    | 8.52:1 ✅  |
+| Ojos de la rana              | `#041a10`              | `frog`        | 13.49:1 ✅ |
+| Boca destino libre           | `#0e8a5a`              | `background`  | 4.61:1 ✅  |
+| Boca destino ocupada         | `#00ff88`              | `background`  | 15.04:1 ✅ |
+| Texto del HUD (12 px)        | `#45c48e`              | `background`  | 9.16:1 ✅  |
+| Barra de tiempo              | `#f5ff00` (`--yellow`) | `background`  | 18.43:1 ✅ |
+| Borde 1px del canvas         | `rgba(0,255,136,0.60)` | `--bg`        | 5.61:1 ✅  |
+| Glow del marco (CSS)         | `rgba(0,255,136,0.30)` | `--bg`        | 2.19:1 ✅  |
+| Acento HUD / `.crt`          | `#00ff88`              | `--bg`        | 14.73:1 ✅ |
+
+**Ajustes que impone la medición** (sin ellos la skin no pasa):
+
+- **La escalera del río está aritméticamente saturada y no admite retoques a ojo.** Sobre
+  `riverBand #020f20` el techo absoluto lo pone la rana `#00ff88` en **14.34:1**, y el mínimo exigible
+  es `3 x 1.5 x 1.5 x 1.5 = 10.13`. Los cuatro peldaños reales quedan en 4.00 → 6.09 → 9.36 → 14.34,
+  es decir pasos de **1.52 / 1.54 / 1.53**. Subir el tronco o bajar la tortuga rompe un par obligatorio
+  inmediatamente. Por eso el río es **el azul más oscuro de las tres skins**: cada centésima de
+  luminancia que se le quite al agua es margen que gana la escalera.
+- **La tortuga sumergida se sube a 4.00:1, no a 3.0:1.** Es el único rol que se dibuja como contorno
+  de 2 px; con 3:1 justo desaparecía. El margen extra sale de `#0d7d92`, no de engordar la línea
+  (engordar sería tocar la forma, y la forma no se toca).
+- **El camión baja de blanco puro a `#9ab4dd`.** Con el `#dbe7ff` que pedía la identidad "caja blanca",
+  rana vs camión caía a **1.08:1**. A `#9ab4dd` el par sube a **1.57:1** y el camión sigue siendo
+  9.09:1 sobre el asfalto y 1.70:1 contra el coche. Sigue leyéndose como caja clara; deja de ser un
+  agujero donde se pierde la rana.
+- **El texto del HUD no puede ser el `#cfffe6` obvio.** A 18.34:1 sobre el fondo se ve perfecto, pero
+  `drawHud` usa `hud` como **ojo de los iconos de vida** sobre un cuerpo `frog`: el par caía a
+  **1.22:1** y las vidas se veían como manchas verdes. `#45c48e` mantiene 9.16:1 de texto y sube el par
+  a **1.64:1**.
+- **La barra de tiempo se lleva `--yellow`, no el verde del ancla.** Vive en los 4 px superiores, no
+  compite con ningún elemento jugable, y el amarillo es la lectura universal de "cronómetro". El verde
+  ahí habría duplicado el color de la rana en un rol que no es la rana.
+- **Glow solo en CSS.** El `boxShadow` del canvas sube de `0.15` a `0.30` de alpha.
+  `shadowBlur`/`shadowColor` de canvas siguen prohibidos: hoy el componente no los usa y no debe
+  empezar.
+
+#### retro
+
+Fósforo verde **P1**. **4 tonos encendidos exactos**, sin glow, sin gradientes, sin alpha en los
+elementos: el `boxShadow` del canvas se apaga entero (`glow: null`).
+
+| Tono | Hex       | Roles que lo usan                               | Peor contraste medido      |
+| ---- | --------- | ----------------------------------------------- | -------------------------- |
+| P1-1 | `#33ff33` | rana, boca ocupada, barra de tiempo             | 8.49:1 (rana / `safeBand`) |
+| P1-2 | `#19cc19` | coche, tronco, texto del HUD                    | 8.66:1 (tronco / río)      |
+| P1-3 | `#12a312` | camión, tortuga visible                         | 5.60:1 (tortuga / río)     |
+| P1-4 | `#0c800c` | tortuga sumergida, boca libre, borde del canvas | 3.67:1 (sumergida / río)   |
+
+**Sustrato (no cuenta como tono de fósforo: es pantalla apagada, no fósforo encendido):**
+
+| Rol                 | Hex       | Medido contra | Contraste |
+| ------------------- | --------- | ------------- | --------- |
+| Fondo base (fila 0) | `#030d03` | —             | base      |
+| Franja de carretera | `#050b05` | `background`  | 1.01:1 ⚠️ |
+| Franja de río       | `#071507` | `background`  | 1.05:1 ⚠️ |
+| Franja segura       | `#0d430d` | `background`  | 1.72:1 ✅ |
+
+**Tabla por rol, para no tener que cruzar las dos de arriba:**
+
+| Rol                          | Hex       | Medido contra | Contraste  |
+| ---------------------------- | --------- | ------------- | ---------- |
+| Coche                        | `#19cc19` | `roadBand`    | 9.17:1 ✅  |
+| Camión                       | `#12a312` | `roadBand`    | 5.94:1 ✅  |
+| Tronco                       | `#19cc19` | `riverBand`   | 8.66:1 ✅  |
+| Tortuga visible              | `#12a312` | `riverBand`   | 5.60:1 ✅  |
+| Tortuga sumergida (contorno) | `#0c800c` | `riverBand`   | 3.67:1 ✅  |
+| Rana — sobre carretera       | `#33ff33` | `roadBand`    | 14.66:1 ✅ |
+| Rana — sobre río             | `#33ff33` | `riverBand`   | 13.84:1 ✅ |
+| Rana — sobre franja segura   | `#33ff33` | `safeBand`    | 8.49:1 ✅  |
+| Ojos de la rana              | `#030d03` | `frog`        | 14.58:1 ✅ |
+| Boca destino libre           | `#0c800c` | `background`  | 3.87:1 ✅  |
+| Boca destino ocupada         | `#33ff33` | `background`  | 14.58:1 ✅ |
+| Texto del HUD (12 px)        | `#19cc19` | `background`  | 9.12:1 ✅  |
+| Barra de tiempo              | `#33ff33` | `background`  | 14.58:1 ✅ |
+| Borde 1px del canvas         | `#0c800c` | `--bg`        | 3.86:1 ✅  |
+| Glow del marco               | ninguno   | —             | apagado    |
+
+Escalones del fósforo, todos por encima de 1.5:1: P1-4/P1-3 **1.53:1**, P1-3/P1-2 **1.55:1**,
+P1-2/P1-1 **1.60:1**. Extremo P1-4/P1-1: **3.77:1**.
+
+**Cómo se reparten 4 tonos entre 10 roles** (la parte honesta de esta skin):
+
+- **No hay siete colores, hay cuatro, y cada tono se comparte entre roles de zonas distintas.** Coche y
+  tronco comparten P1-2; camión y tortuga comparten P1-3. **No se confunden porque nunca coexisten en
+  la misma franja**: el coche solo aparece en las filas 8-12 y el tronco solo en las 1-6, y entre
+  ambas zonas hay una franja segura de por medio. La ambigüedad de color se resuelve por **zona**, no
+  por tono.
+- **Dentro de cada zona sí hay escalera completa.** Río: sumergida P1-4 < tortuga P1-3 < tronco P1-2 <
+  rana P1-1. Carretera: camión P1-3 < coche P1-2 < rana P1-1. Los pares obligatorios de cada zona se
+  cumplen con tono, no con forma.
+- **El camión se lleva el tono más oscuro de los dos vehículos a propósito:** es el más ancho, tiene
+  más superficie, y su franja de cabina en `roadBand` lo separa del coche también por silueta.
+- **El sustrato no entra en el presupuesto de 4 tonos.** Las tres franjas y el fondo son niveles de
+  pantalla apagada, todos por debajo de 2:1 contra el fondo base, precisamente para no competir con
+  ningún tono encendido. Es una decisión declarada, no un descuido: un Frogger pinta zonas, no un
+  fondo único, y ninguna de las tres franjas puede llevarse un peldaño de fósforo sin quitárselo a un
+  elemento jugable.
+- **La única franja que sí se gana separación real es la segura** (`#0d430d`): 1.63:1 contra el río y
+  1.73:1 contra el asfalto. Es la que importa —marca dónde se puede respirar— y es la única que toca a
+  las otras dos.
+
+**Diferenciación**
+
+- **Los seis pares obligatorios, en las tres skins:**
+
+  | Par                                 | `clasico` | `neon`    | `retro`   |
+  | ----------------------------------- | --------- | --------- | --------- |
+  | Tortuga visible / tortuga sumergida | 3.31:1 ✅ | 1.52:1 ✅ | 1.53:1 ✅ |
+  | Coche / camión                      | 1.88:1 ✅ | 1.70:1 ✅ | 1.55:1 ✅ |
+  | Tronco / tortuga visible            | 1.92:1 ✅ | 1.54:1 ✅ | 1.55:1 ✅ |
+  | Boca libre / boca ocupada           | 7.80:1 ✅ | 3.26:1 ✅ | 3.77:1 ✅ |
+  | Rana / tronco                       | 4.70:1 ✅ | 1.53:1 ✅ | 1.60:1 ✅ |
+  | Rana / tortuga visible              | 2.44:1 ✅ | 2.36:1 ✅ | 2.47:1 ✅ |
+
+  **Los seis pasan en las tres skins.** `clasico` los aprueba con holgura porque reparte matices muy
+  distintos (rojo, blanco, marrón, verde) sin preocuparse del fondo; lo que suspende es el contraste
+  **contra la franja**, no entre elementos.
+
+- **Pares no obligatorios pero medidos**, porque el jugador los cruza igual:
+
+  | Par                           | `clasico` | `neon`     | `retro`    |
+  | ----------------------------- | --------- | ---------- | ---------- |
+  | Rana / coche                  | 2.42:1 ✅ | 2.67:1 ✅  | 1.60:1 ✅  |
+  | Rana / camión                 | 1.29:1 ⚠️ | 1.57:1 ✅  | 2.47:1 ✅  |
+  | Rana / tortuga sumergida      | 8.09:1 ✅ | 3.59:1 ✅  | 3.77:1 ✅  |
+  | Tronco / tortuga sumergida    | 1.72:1 ✅ | 2.34:1 ✅  | 2.36:1 ✅  |
+  | Ojos / cuerpo de la rana      | 1.25:1 ⚠️ | 13.49:1 ✅ | 14.58:1 ✅ |
+  | Icono de vida: `hud` / `frog` | 1.15:1 ⚠️ | 1.64:1 ✅  | 1.60:1 ✅  |
+
+- **Detalles interiores que usan un color de franja** (tienen que verse dentro de su pieza): vetas del
+  tronco (`riverBand` sobre `log`) — `clasico` 2.67:1, `neon` 9.36:1, `retro` 8.66:1; escama de la
+  tortuga (`riverBand` sobre `turtle`) — 5.13 / 6.09 / 5.60:1; ruedas y parabrisas (`roadBand` sobre
+  `car`) — 6.05 / 5.35 / 9.17:1 y sobre `truck` — 11.38 / 9.09 / 5.94:1. **Todos ✅ salvo las vetas del
+  tronco en `clasico`**, que heredan su 2.67:1.
+
+- **Excepción declarada: `riverBand` vs `roadBand`** queda en 1.17:1 (`clasico`), **1.00:1** (`neon`) y
+  1.06:1 (`retro`), muy por debajo del 1.5:1 de decorado. **Se acepta en las tres skins** y el motivo es
+  de layout, no de pereza: **río y carretera no se tocan** — entre las filas 6 y 8 siempre hay la
+  franja segura de la fila 7, que sí está medida a ≥ 1.63:1 contra ambas en `neon` y `retro`. Las dos
+  zonas se separan además por matiz (azul frío vs neutro en `neon`) y sobre todo por su contenido:
+  donde hay coches no hay troncos. Gastar luminancia en separar dos franjas que nunca son adyacentes
+  habría salido del presupuesto de la escalera del río, que sí es crítica.
+
+**Identidad**
+
+Las tres skins cambian **solo color**. Nada de `COLS`/`ROWS` (16x14), `CELL` (40 px), `HUD_H` (16) ni
+`HUD_TIMER_H` (4); nada de las filas de zona (`ROW_RIVER_TOP`…`ROW_START`), ni de `GOAL_COUNT` (5),
+`GOAL_WIDTH` (2) o `GOAL_STRIDE` (3); nada de velocidades de carril, `JUMP_MS` ni el tiempo de ronda.
+Tampoco se toca la geometría de `frogShape()` (radio `CELL * 0.35`, apertura de patas), ni el
+`lineWidth = 2` del contorno de la tortuga sumergida, ni los offsets en píxeles de ruedas, parabrisas
+y vetas. Si una skin pareciera necesitar un contorno más grueso o una boca más ancha, la skin está mal
+y hay que corregir el hex.
+
+**Render y prerrequisitos**
+
+Arquitectura **favorable** — la mejor de las cinco fichas del archivo. No hay nada que extraer:
+
+1. `DRAFT_PALETTE` (`FroggerGame.tsx:71-89`) ya es una constante de módulo tipada por
+   `FroggerPalette` (`:51-69`), y la interfaz **ya tiene la forma congelada por `specs/12`**, la misma
+   que usan las tablas de arriba. Las tres skins son tres objetos de esa interfaz.
+2. `draw()` (`:996-1004`) resuelve `const p = DRAFT_PALETTE` una sola vez por frame y se lo pasa a
+   todas las funciones de dibujo. El único cambio es sustituir esa línea por la paleta resuelta desde
+   la skin activa (`skinRef.current`, que ya existe en `:364-366`).
+3. El `<canvas>` ya lee `palette.border` y `palette.glow` desde el render (`:1082-1083`) y **ya
+   contempla `glow: null`** (`boxShadow: palette.glow ? ... : "none"`), que es exactamente lo que
+   `retro` necesita. `const palette = DRAFT_PALETTE` (`:375`) pasa a resolverse por skin.
+4. **No hay spritesheet, ni `shadowBlur`, ni `shadowColor`, ni un solo hex fuera de la constante.** Las
+   únicas `rgba()` del componente son el borde y el glow, y ambas se miden compuestas sobre `--bg`.
+
+Lo único a vigilar: el `<canvas>` reacciona a `skin` por render, pero el bucle la lee por `skinRef`, así
+que **cambiar de skin debe repintar el canvas sin reiniciar la partida** — el diseño actual ya lo
+permite (la paleta se resuelve dentro de `draw()`, no al montar el efecto). Que siga así.
+
+**Integración**
+
+La infraestructura de skins ya existe y es agnóstica del juego; Frogger la adopta, no la inventa:
+
+- `lib/skins.ts` ya expone `SkinId`, `DEFAULT_SKIN`, `SkinPalettes<T>`, `resolvePalette`, `getSkin` /
+  `setSkin` y `skinStorageKey()` — **`localStorage["av-skin-frogger"]` con fallback a `clasico` sale
+  gratis**, incluido el caso de un valor guardado que no sea una de las tres skins.
+- `RealGameProps` (`components/GamePlayer.tsx`) ya tiene `skin?: SkinId`, y **`FroggerGame` ya la
+  declara y la guarda en `skinRef`** (`FroggerGame.tsx:362-366`). No hay que añadir la prop.
+- El `data-skin` + `data-game` en `.av-player` / `.crt` y el selector del HUD junto a Pausa /
+  Reiniciar **ya están construidos**. El interruptor real es **`GAMES_WITH_SKINS`**
+  (`components/GamePlayer.tsx:113-118`, hoy `["tetris", "asteroids", "snake", "arkanoid"]`): hay que
+  añadir `"frogger"` o el selector no aparece.
+- Falta crear **`components/games/skins/frogger.ts`** con
+  `export const FROGGER_SKINS: SkinPalettes<FroggerPalette>`, siguiendo `skins/snake.ts`, y sustituir
+  `DRAFT_PALETTE` por `resolvePalette(FROGGER_SKINS, skin)`. La forma de `FroggerPalette` no se toca:
+  ya es la correcta.
+- Falta el **acento de gabinete por juego en `app/globals.css`** (ver Riesgos).
+
+**Riesgos**
+
+- **El acento CSS del gabinete es de otro juego mientras no se declare el de Frogger.**
+  `app/globals.css:1263-1277` define `[data-skin]` globalmente con los valores de Tetris
+  (`neon` → `--skin-accent: var(--magenta)`), y a partir de `:1287` hay overrides
+  `[data-game="..."][data-skin="..."]` para arkanoid, asteroids y snake. **Frogger no tiene el suyo**,
+  así que hoy saldría con marco, HUD y glow **magenta** alrededor de un canvas verde. Lo que le
+  corresponde, por color de catálogo `green` y por la paleta de arriba:
+  - `[data-game="frogger"][data-skin="neon"]` → `--skin-accent: var(--green)`,
+    `--skin-glow: rgba(0, 255, 136, 0.4)`.
+  - `[data-game="frogger"][data-skin="retro"]` → `--skin-accent: #33ff33` (14.57:1 sobre `--bg`) y
+    **`--skin-glow: transparent`**: en `retro` el glow se apaga, igual que ya hace Snake en `:1305`.
+  - `clasico` se queda con el cian global de `[data-skin]`, como el resto de juegos.
+- **La escalera del río de `neon` no tiene holgura** (pasos de 1.52-1.54 sobre un techo de 14.34:1). Si
+  alguien "sube un poco" el tronco o el agua para que se vea más bonito, rompe `tronco/tortuga` o
+  `rana/tronco` en la misma edición. Cualquier retoque en el río de `neon` **obliga a volver a medir
+  los cuatro peldaños**, no solo el que se movió.
+- **`clasico` sale objetivamente peor que las otras dos**, y en el par más crítico del juego: la
+  tortuga sumergida a 1.55:1 contra el agua. Es el default y se deja intacto por fidelidad, pero
+  conviene anticipar la queja "en clásico no veo cuándo se hunde la tortuga" — la respuesta es que
+  `DRAFT_PALETTE` nació como borrador de implementación, no como diseño medido. **Si el usuario
+  prefiere arreglarlo, no es un cambio de skin: es redefinir el default**, y entonces `clasico` deja
+  de ser transcripción y hay que volver a escribir esta sección.
+- **El HUD de Frogger vive dentro del canvas** (16 px de la fila 0: barra de tiempo, score, nivel e
+  iconos de vida), a diferencia del resto de juegos, donde el HUD es DOM y se retematiza solo con
+  `data-skin`. Aquí `hud` y `timerBar` son **hex de la paleta** y ya están medidos arriba; el HUD
+  externo de `GamePlayer` sigue funcionando como siempre. Los dos coexisten: no se debe intentar
+  unificarlos desde una skin.
+- **Nada de `shadowBlur` para el glow de `neon`.** El juego repinta 14 filas completas más ~30
+  entidades por frame; el glow va en CSS (`boxShadow` del canvas + `--skin-glow` del gabinete), que es
+  como lo hace toda la plataforma.

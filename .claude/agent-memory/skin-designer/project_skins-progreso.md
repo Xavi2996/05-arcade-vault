@@ -20,11 +20,19 @@ Estado del diseño de skins (el detalle con hex y ratios vive en `references/gam
   por completo de retintar por composición, y dos frutas del PNG ni siquiera pasan el 3:1 en
   `clasico`. Solo tiene 3 roles jugables (cabeza/cuerpo/fruta), así que **no** se le aplica la
   excepción de [[criterio-piezas-multicolor]]: los tres pares se exigen ≥ 1.5:1 sin excusas.
+- **FROGGER** (`frogger`, ARCADE/green) — diseñado **2026-09-23**, en la rama `spec-12-juego-frogger`.
+  Primer juego que llega **ya preparado para skins**: `DRAFT_PALETTE` como constante de módulo, la
+  interfaz `FroggerPalette` congelada por el spec, `skin` ya declarada en el `forwardRef`, y el
+  `<canvas>` ya contemplando `glow: null`. Cero extracción, cero spritesheet. Es el primer juego
+  **multi-fondo** (ver [[fondo-por-franja]]). Al cerrar la ficha aún faltaba implementarlo:
+  `components/games/skins/frogger.ts`, `"frogger"` en `GAMES_WITH_SKINS` y su acento
+  `[data-game="frogger"]` en `app/globals.css`.
 
 **Corregido el 2026-09-22 (la nota anterior ya era falsa):** la infraestructura de skins **ya está
 implementada y es agnóstica del juego** — `lib/skins.ts` (ids, `localStorage`, `resolvePalette`),
 `skin?: SkinId` en `RealGameProps`, `data-skin` en `.crt` y el selector del HUD. Lo que gatea qué juego
-ve el selector es `GAMES_WITH_SKINS` en `components/GamePlayer.tsx`, hoy solo `tetris`. Así que dar
+ve el selector es `GAMES_WITH_SKINS` en `components/GamePlayer.tsx` (al 2026-09-23: tetris, asteroids,
+snake, arkanoid — Frogger todavía no). Así que dar
 skins a un juego ya no es construir infra: es escribir `components/games/skins/<id>.ts` y añadir su id
 a ese set. **Verifica esto en el código antes de escribir la sección Integración de una ficha** — se
 movió una vez y se volverá a mover.

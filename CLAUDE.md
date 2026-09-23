@@ -38,9 +38,10 @@ Arcade Vault — plataforma para jugar online y competir por la mayor cantidad d
 - `/frontend-design` — usa siempre para diseñar o retocar la interfaz de usuario.
 - `/spec` — diseña e interactivamente redacta un spec en `specs/NN-slug.md` antes de implementar cualquier feature (Spec Driven Design, ver README.md). Guarda el spec en `Draft`; nunca lo aprueba ni implementa automáticamente.
 - `/spec-impl` — implementa un spec ya `Approved` de `specs/`, normalmente creando/cambiando a la rama `spec-NN-slug` (controlado por `AutoCreateBranch` en `specs/.spec-config.yml`).
+- `/spec-impl-game` — variante de `/spec-impl` para specs de **juego**, con cierre completo. Delega las fases 1–4 en el propio `/spec-impl` (lee su `SKILL.md` y lo ejecuta al pie de la letra) y añade una Fase 5 secuencial: criterios + `lint`/`build` → fila en `games` con `playable = true` → `references/implemented-games.md` → **una sola** invocación de `@agent-skin-designer` (en solitario, esperando a que termine) → implementación de las tres skins (`components/games/skins/<id>.ts` + `GAMES_WITH_SKINS`) → backlog. Úsalo en vez de `/spec-impl` siempre que el spec añada un juego jugable. Definida en este repo (`.claude/skills/spec-impl-game/`), no viene de `fernando-skills` ni está en `skills-lock.json`.
 - `/spec-juego` — variante especializada de `/spec` para añadir un nuevo juego jugable (portado desde `references/templates/started-games/` o desde cero), ya wireado a `GamePlayer.tsx` y al leaderboard genérico de Supabase. Úsalo en vez de `/spec` cuando la tarea sea "agregar un juego nuevo".
 
-Estas tres skills de spec vienen de `Klerith/fernando-skills` (instaladas vía `npx skills@latest add Klerith/fernando-skills`, ver `skills-lock.json`) y ya están presentes en `.claude/skills/` — el workflow "Spec Driven Design" del README.md está activo, no es solo una intención documentada.
+Las tres skills de spec base (`/spec`, `/spec-impl`, `/spec-juego`) vienen de `Klerith/fernando-skills` (instaladas vía `npx skills@latest add Klerith/fernando-skills`, ver `skills-lock.json`) y ya están presentes en `.claude/skills/` — el workflow "Spec Driven Design" del README.md está activo, no es solo una intención documentada.
 
 ## Agents
 
@@ -63,6 +64,6 @@ Tailwind CSS v4 is wired through `@tailwindcss/postcss` (see `postcss.config.mjs
 
 ## Workflow convention (per README.md)
 
-Every non-trivial feature goes through `specs/NN-slug.md` first (`/spec` or `/spec-juego` to draft, `/spec-impl` to implement once `Approved`). Check `specs/` for the current numbered history before starting new work — as of this writing it runs 01 (MVP visual) through 09 (Snake), covering the landing page, about/contact, Supabase setup, and each ported game.
+Every non-trivial feature goes through `specs/NN-slug.md` first (`/spec` or `/spec-juego` to draft, `/spec-impl` — o `/spec-impl-game` si el spec añade un juego — to implement once `Approved`). Check `specs/` for the current numbered history before starting new work — as of this writing it runs 01 (MVP visual) through 09 (Snake), covering the landing page, about/contact, Supabase setup, and each ported game.
 
-Para juegos, el pipeline completo empieza un paso antes: `@agent-game-planner` decide qué juego construir y deja la ficha en `references/game-suggestions.todo.md` → `/spec-juego` redacta `specs/NN-slug.md` en `Draft` → tú lo apruebas → `/spec-impl` lo implementa en la rama `spec-NN-slug`.
+Para juegos, el pipeline completo empieza un paso antes: `@agent-game-planner` decide qué juego construir y deja la ficha en `references/game-suggestions.todo.md` → `/spec-juego` redacta `specs/NN-slug.md` en `Draft` → tú lo apruebas → `/spec-impl-game` lo implementa en la rama `spec-NN-slug` y encadena el cierre (catálogo, fichas, `@agent-skin-designer` y sus tres skins en código).
