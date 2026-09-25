@@ -212,7 +212,9 @@ export default function GamePlayer({ game }: { game: Game }) {
   const aspectNum = aspectH ? aspectW / aspectH : 4 / 3;
 
   const level = isRealGame ? realLevel : Math.floor(score / 2500) + 1;
-  const name = nameOverride ?? sessionUser?.name ?? "INVITADO";
+  // Con sesión el nombre es el nick de la cuenta y no se negocia: poder
+  // escribir otro en el modal desmentiría al perfil en el mismo formulario.
+  const name = sessionUser ? sessionUser.name : (nameOverride ?? "INVITADO");
   const hasSkins = isRealGame && GAMES_WITH_SKINS.has(game.id);
 
   const [skinOpen, setSkinOpen] = useState(false);
@@ -294,7 +296,7 @@ export default function GamePlayer({ game }: { game: Game }) {
 
   const saveScore = async () => {
     try {
-      await saveScoreToDb(game.id, name, score);
+      await saveScoreToDb(game.id, name, score, sessionUser?.id ?? null);
       setSaved(true);
     } catch (err) {
       console.error("No se pudo guardar la puntuación", err);
@@ -508,6 +510,13 @@ export default function GamePlayer({ game }: { game: Game }) {
                     setNameOverride(e.target.value.toUpperCase().slice(0, 10))
                   }
                   placeholder="TUS INICIALES"
+                  readOnly={Boolean(sessionUser)}
+                  aria-label={sessionUser ? "Tu nick" : "Tus iniciales"}
+                  title={
+                    sessionUser
+                      ? "Tu puntuación se guarda con el nick de tu cuenta"
+                      : undefined
+                  }
                 />
                 <button className="btn yellow" onClick={saveScore}>
                   GUARDAR PUNTUACIÓN

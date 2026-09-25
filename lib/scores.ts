@@ -58,9 +58,58 @@ export async function saveScore(
   gameId: string,
   playerName: string,
   score: number,
+  // Nulo a propósito cuando se juega como invitado: la política
+  // "guests insert anonymous scores" solo acepta filas sin dueño, y la de
+  // usuario exige que el user_id sea el suyo.
+  userId: string | null,
 ): Promise<void> {
   const { error } = await supabase
     .from("scores")
-    .insert({ game_id: gameId, player_name: playerName, score });
+    .insert({
+      game_id: gameId,
+      player_name: playerName,
+      score,
+      user_id: userId,
+    });
   if (error) throw error;
+}
+
+export interface UserBestScore {
+  gameId: string;
+  gameTitle: string;
+  score: number;
+  date: string;
+}
+
+/**
+ * La mejor marca del usuario en cada juego, para /cuenta. Se pide ordenado por
+ * puntuación y se queda con la primera fila de cada juego: Postgres no tiene
+ * distinct on a través de PostgREST y el volumen por usuario es pequeño.
+ */
+export async function getBestScoresByUser(
+  userId: string,
+): Promise<UserBestScore[]> {
+  const { data, error } = await supabase
+    .from("scores")
+    .select("game_id, score, created_at, games(title)")
+    .eq("user_id", userId)
+    .order("score", { ascending: false });
+  if (error) throw error;
+
+  const best = new Map<string, UserBestScore>();
+  for (const row of data as unknown as {
+    game_id: string;
+    score: number;
+    created_at: string;
+    games: { title: string } | null;
+  }[]) {
+    if (best.has(row.game_id)) continue;
+    best.set(row.game_id, {
+      gameId: row.game_id,
+      gameTitle: row.games?.title ?? row.game_id.toUpperCase(),
+      score: row.score,
+      date: formatDate(row.created_at),
+    });
+  }
+  return [...best.values()];
 }

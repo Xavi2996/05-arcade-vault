@@ -3370,3 +3370,279 @@ body:has(.av-player) > #root > footer {
   font-weight: 700;
   white-space: pre-wrap;
 }
+
+/* ===== auth: mensajes de campo, estado de carga y cuenta (SPEC 13) ===== */
+
+/* Los mensajes hablan en frases, no en etiquetas: van en mono, en caja de
+   frase, y heredan los colores que la app ya usa para peligro y acierto. */
+.field-hint,
+.field-ok,
+.field-error {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+}
+.field-hint {
+  color: var(--ink-faint);
+}
+.field-ok {
+  color: var(--green);
+}
+.field-error {
+  color: var(--magenta);
+}
+.field-ok::before,
+.field-error::before {
+  content: "▸ ";
+}
+.field input[aria-invalid="true"] {
+  border-color: var(--magenta);
+}
+.field input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 12px rgba(255, 0, 110, 0.35);
+}
+.field input[readonly] {
+  color: var(--ink-dim);
+  cursor: default;
+}
+
+.form-error,
+.form-notice {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.45;
+  border: 1px solid var(--magenta);
+  background: rgba(255, 0, 110, 0.08);
+  color: var(--ink);
+}
+.form-notice {
+  border-color: var(--cyan);
+  background: rgba(0, 245, 255, 0.08);
+}
+
+.auth-lead {
+  margin: 0 0 18px;
+  color: var(--ink-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.auth-switch {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.auth-switch button {
+  background: 0;
+  border: 0;
+  padding: 0;
+  color: var(--cyan);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0, 245, 255, 0.4);
+}
+.auth-switch button:hover {
+  text-shadow: 0 0 8px rgba(0, 245, 255, 0.6);
+}
+
+/* En carga el botón no cambia de tamaño: solo baja y deja de reaccionar, para
+   que nada salte bajo el cursor mientras se espera al servidor. */
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:disabled:hover {
+  color: var(--ink);
+  box-shadow:
+    0 0 0 transparent,
+    inset 0 0 0 transparent;
+}
+.btn:disabled:active {
+  transform: none;
+}
+
+/* ===== menú de cuenta del Nav ===== */
+.av-nav .account {
+  position: relative;
+  margin-left: 16px;
+}
+.av-nav .account .auth-btn {
+  margin-left: 0;
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  border: 1px solid var(--cyan);
+  box-shadow: 0 0 22px rgba(0, 245, 255, 0.25);
+}
+.account-menu a,
+.account-menu button {
+  /* 44px de alto mínimo: el objetivo táctil que fija SPEC 11. */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-2);
+  text-align: left;
+  cursor: pointer;
+}
+.account-menu > :last-child {
+  border-bottom: 0;
+}
+.account-menu a:hover {
+  background: rgba(0, 245, 255, 0.08);
+  color: var(--cyan);
+}
+.account-menu button:hover {
+  background: rgba(255, 0, 110, 0.08);
+  color: var(--magenta);
+}
+.av-mobile-panel .mobile-signout {
+  min-height: 44px;
+  padding: 0;
+  background: 0;
+  border: 0;
+  text-align: left;
+  color: var(--magenta);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ===== /cuenta ===== */
+.av-cuenta {
+  max-width: 1000px;
+  margin: 32px auto 80px;
+  padding: 0 32px;
+}
+.cuenta-head {
+  margin-bottom: 28px;
+}
+.cuenta-head h1 {
+  margin: 0;
+  font-family: var(--pixel);
+  font-size: clamp(20px, 3.4vw, 34px);
+  letter-spacing: 0.08em;
+}
+.cuenta-sub {
+  margin: 10px 0 0;
+  color: var(--ink-dim);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.cuenta-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.cuenta-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  padding: 24px;
+}
+.cuenta-card h2 {
+  margin: 0 0 18px;
+  font-family: var(--pixel);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--cyan);
+}
+.cuenta-datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 18px;
+  margin: 0 0 22px;
+  align-items: baseline;
+}
+.cuenta-datos dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+.cuenta-datos dd {
+  margin: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.cuenta-rename {
+  border-top: 1px solid var(--line-2);
+  padding-top: 18px;
+  margin-bottom: 14px;
+}
+.cuenta-marcas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cuenta-marcas li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.cuenta-marcas li:last-child {
+  border-bottom: 0;
+}
+.cuenta-marcas a {
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+.cuenta-marcas a:hover {
+  color: var(--cyan);
+}
+.cuenta-marcas .marca-score {
+  font-family: var(--pixel);
+  font-size: 11px;
+  color: var(--yellow);
+  text-shadow: 0 0 8px rgba(245, 255, 0, 0.4);
+}
+.cuenta-marcas .marca-fecha {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.cuenta-vacio {
+  text-align: center;
+  color: var(--ink-dim);
+}
+.cuenta-vacio p {
+  margin: 0 0 16px;
+}
+
+@media (max-width: 840px) {
+  .av-cuenta {
+    padding: 0 16px;
+  }
+  .cuenta-grid {
+    grid-template-columns: 1fr;
+  }
+  .cuenta-card {
+    padding: 18px;
+  }
+  .cuenta-marcas li {
+    grid-template-columns: 1fr auto;
+  }
+  .cuenta-marcas .marca-fecha {
+    grid-column: 1 / -1;
+  }
+}
