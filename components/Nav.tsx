@@ -1,26 +1,64 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
-import { getUser, setUser, subscribeUser } from "@/lib/session";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  getUser,
+  primeUser,
+  signOut,
+  subscribeUser,
+  type SessionUser,
+} from "@/lib/session";
 
-export default function Nav() {
+export default function Nav({
+  initialUser,
+}: {
+  initialUser: SessionUser | null;
+}) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const user = useSyncExternalStore(subscribeUser, getUser, () => null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Siembra el snapshot que el servidor ya resolvió antes de que el store lea:
+  // así el primer render del cliente coincide con el del servidor y el Nav no
+  // parpadea de "Iniciar Sesión" al nick. Es idempotente.
+  primeUser(initialUser);
+  const user = useSyncExternalStore(subscribeUser, getUser, () => initialUser);
 
   const close = () => setOpen(false);
-  const handleSignOut = () => {
-    setUser(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
     close();
+    await signOut();
+    router.push("/");
+    router.refresh();
   };
 
   const homeActive = pathname === "/";
   const libraryActive =
     pathname === "/biblioteca" || pathname.startsWith("/juegos");
   const hallActive = pathname === "/salon-de-la-fama";
-  const authActive = pathname === "/auth";
+  const accountActive = pathname === "/cuenta" || pathname.startsWith("/auth");
   const aboutActive = pathname === "/acerca-de";
 
   return (
@@ -52,11 +90,35 @@ export default function Nav() {
           <span>CRÉDITOS · 03</span>
         </div>
         {user ? (
-          <button className="btn ghost auth-btn" onClick={handleSignOut}>
-            {user.name} ▾
-          </button>
+          <div className="account" ref={menuRef}>
+            <button
+              className="btn ghost auth-btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+            >
+              {user.name || "CUENTA"} ▾
+            </button>
+            {menuOpen && (
+              <div className="account-menu" role="menu">
+                <Link
+                  href="/cuenta"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    close();
+                  }}
+                >
+                  CUENTA
+                </Link>
+                <button type="button" role="menuitem" onClick={handleSignOut}>
+                  CERRAR SESIÓN
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
-          <Link href="/auth" className="btn auth-btn">
+          <Link href="/auth/login" className="btn auth-btn">
             Iniciar Sesión
           </Link>
         )}
@@ -74,7 +136,10 @@ export default function Nav() {
         onClick={close}
       ></div>
       <aside className={"av-mobile-panel" + (open ? " open" : "")}>
-        <div className="pixel neon-cyan" style={{ fontSize: 11, marginBottom: 16 }}>
+        <div
+          className="pixel neon-cyan"
+          style={{ fontSize: 11, marginBottom: 16 }}
+        >
           MENÚ
         </div>
         <Link href="/" className={homeActive ? "active" : ""} onClick={close}>
@@ -94,16 +159,37 @@ export default function Nav() {
         >
           Salón de la Fama
         </Link>
-        <Link href="/acerca-de" className={aboutActive ? "active" : ""} onClick={close}>
+        <Link
+          href="/acerca-de"
+          className={aboutActive ? "active" : ""}
+          onClick={close}
+        >
           Acerca de
         </Link>
-        <Link href="/auth" className={authActive ? "active" : ""} onClick={close}>
+        <Link
+          href={user ? "/cuenta" : "/auth/login"}
+          className={accountActive ? "active" : ""}
+          onClick={close}
+        >
           {user ? "Cuenta" : "Iniciar Sesión"}
         </Link>
+        {user && (
+          <button
+            type="button"
+            className="mobile-signout"
+            onClick={handleSignOut}
+          >
+            Cerrar sesión
+          </button>
+        )}
         <div style={{ flex: 1 }}></div>
         <div
           className="pixel"
-          style={{ fontSize: 9, color: "var(--ink-faint)", letterSpacing: "0.16em" }}
+          style={{
+            fontSize: 9,
+            color: "var(--ink-faint)",
+            letterSpacing: "0.16em",
+          }}
         >
           CRÉDITOS · 03
         </div>

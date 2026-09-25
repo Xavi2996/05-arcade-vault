@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Press_Start_2P, JetBrains_Mono, Courier_Prime } from "next/font/google";
 import Nav from "@/components/Nav";
+import { getServerSessionUser } from "@/lib/supabase-server";
 import "./globals.css";
 
 const pressStart2P = Press_Start_2P({
@@ -27,7 +28,10 @@ export const metadata: Metadata = {
     "Arcade Vault — plataforma para jugar online y competir por la mayor cantidad de puntos.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // La sesión se resuelve en el servidor y viaja al Nav como snapshot inicial.
+  const initialUser = await getServerSessionUser();
+
   return (
     <html
       lang="es"
@@ -37,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="av-bg" />
         <div className="av-noise" />
         <div id="root">
-          <Nav />
+          <Nav initialUser={initialUser} />
           <main className="av-main">{children}</main>
           <footer
             style={{
